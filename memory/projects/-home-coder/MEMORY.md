@@ -1,0 +1,1 @@
+- [Global skills setup](global-skills-setup.md) — ~/.claude/skills symlinks to zamp_dev_setup/skills (central, git-tracked)
