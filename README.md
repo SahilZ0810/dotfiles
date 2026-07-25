@@ -17,6 +17,89 @@ workspace boot) and not owned by the Coder platform itself
 - `memory/projects/<slug>/` — mirrors `~/.claude/projects/<slug>/memory/`
   for every project, where `<slug>` is Claude Code's dash-encoded absolute
   path (e.g. `-home-coder-zamp-services-application-platform-frontend`).
+- `shell/` — interactive shell config for **both bash and zsh**:
+  - `init.sh` — the single entry point sourced from `~/.bashrc` and
+    `~/.zshrc`; picks the per-shell file and loads the banner.
+  - `common.sh` — shared by both shells (PATH, `EDITOR`, aliases).
+  - `bash.sh` / `zsh.sh` — per-shell settings. `zsh.sh` carries history,
+    completion, plugin loading, and a dependency-free git-aware prompt (no
+    oh-my-zsh, so a fresh workspace needs nothing installed).
+  - `fastfetch-init.sh`, `fastfetch-config.jsonc` — login banner.
+  - `tmux-init.sh` — guarded tmux auto-attach (see below).
+- `config/tmux.conf` — symlinked to `~/.tmux.conf`.
+- `config/git/delta.gitconfig` — included into `~/.gitconfig` by `install.sh`.
+
+## CLI tools
+
+`install.sh` installs these into `~/.local/bin` from **pinned** release URLs.
+Pinned rather than "latest" because this script runs on every workspace start,
+and resolving latest meant a GitHub API round-trip (and rate-limit exposure)
+each time.
+
+| Tool | Use |
+|------|-----|
+| `rg` (ripgrep) | Fast search. Also what `shell/zsh.sh` hands fzf as `FZF_DEFAULT_COMMAND`, making `Ctrl-T` gitignore-aware. |
+| `fd` | Fast find. |
+| `delta` | Git diff pager. Configured purely via gitconfig, so **zero shell-startup cost**. |
+| `bat` | `cat` with highlighting. |
+| `lazygit` | Git TUI; good for interactive rebase and hunk staging. |
+| `tmux` | Session survival (see below). |
+| `jq` | JSON. |
+| `fastfetch` | Banner. linux-amd64 only upstream, so skipped elsewhere. |
+
+Only `linux/x86_64` and `darwin/arm64` are wired up — those are the targets
+whose release assets were verified to exist. Other platforms skip with a
+message rather than failing. Every download is non-fatal, so an offline or
+rate-limited boot yields a workspace missing a tool, never a failed build.
+
+Deliberately **not** included: `eza` (has never published a macOS binary),
+`btop` (no macOS build since 2022), `dust` (Rosetta-only on arm64), `duf`
+(unmaintained), `starship` (~354ms command lag; the `vcs_info` prompt here is
+effectively free), and `atuin` (fights fzf for `Ctrl-R` and hijacks
+`ZSH_AUTOSUGGEST_STRATEGY`).
+
+## tmux
+
+`shell/tmux-init.sh` auto-attaches to a `main` session, but **only for real
+interactive SSH logins**. That distinction matters: `coder ssh` has no
+reconnecting PTY, so a dropped connection kills whatever was in the
+foreground — including a long Claude Code run. Coder's *web* terminal already
+reconnects server-side and isn't SSH, so it's left alone.
+
+It refuses to attach when: not in an SSH session, already inside tmux, no TTY,
+or any of `$CI`, `$CLAUDECODE`, `$INSIDE_EMACS`, `$VSCODE_SHELL_INTEGRATION`,
+`$ZED_TERM`, `TERM_PROGRAM=vscode`, `TERMINAL_EMULATOR=JetBrains-JediTerm`,
+`TERM=dumb` is set. Wrapping an IDE terminal or an agent session would range
+from irritating to breaking the workspace build.
+
+Note that tmux solves SSH disconnects, **not** workspace persistence — the
+tmux server is a process in the container and dies on workspace stop.
+
+## zsh plugins
+
+`install.sh` clones these into `${XDG_DATA_HOME:-~/.local/share}/zsh/plugins`
+rather than vendoring them as submodules, to keep the repo lean:
+
+| Plugin | What it gives you |
+|--------|-------------------|
+| [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions) | Inline suggestion from history as you type |
+| [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting) | Colors invalid commands before you run them |
+| [zsh-completions](https://github.com/zsh-users/zsh-completions) | Extra completion definitions |
+| [fzf](https://github.com/junegunn/fzf) | `Ctrl-R` fuzzy history, `Ctrl-T` files, `Alt-C` dirs |
+
+fzf goes to `~/.fzf` via its own installer, which resolves a prebuilt binary
+for the current arch (so unlike the fastfetch step, it works on arm64 too).
+
+**Two ordering constraints in `shell/zsh.sh` that are easy to break:**
+
+1. `zsh-completions` must be added to `fpath` *before* `compinit` runs, or its
+   definitions are silently ignored.
+2. `zsh-syntax-highlighting` must be sourced *last*, after everything else that
+   binds ZLE widgets, because it wraps the widgets it finds at load time.
+
+Every plugin is sourced behind a `[ -f ... ]` guard, so a clone that failed
+during workspace build degrades to "that plugin is missing" and never to a
+broken interactive shell.
 
 ## What's deliberately NOT tracked here
 
@@ -28,20 +111,48 @@ workspace boot) and not owned by the Coder platform itself
   `session-env/`, `shell-snapshots/`, `remote/` — secrets and ephemeral
   session state. Never belongs in git.
 
-## Setting up a new environment (Coder workspace or your laptop)
+## Setting up a Coder workspace (the normal path)
+
+Paste this repo's URL into the workspace's **dotfiles** field. Coder clones
+it and runs `install.sh` automatically — nothing to do by hand.
+
+Details worth knowing:
+
+- Coder picks the first match from `install.sh`, `install`, `bootstrap.sh`,
+  `bootstrap`, `script/bootstrap`, `setup.sh`, `setup`, `script/setup`. Ours
+  is `install.sh`, the first entry.
+- Coder clones into its own config dir — `~/.config/coderv2/dotfiles`, *not*
+  `~/dotfiles`. Symlinks resolve against wherever it landed, so this is only
+  worth knowing when you go looking for the checkout.
+- **A non-zero exit fails the workspace build.** Every optional step here
+  (fastfetch, memory pull) is therefore non-fatal by design. Keep it that
+  way when adding steps.
+- `install.sh` runs at workspace **creation**. For something that should run
+  on every **start**, use Coder's `~/personalize` hook instead.
+
+## Setting up by hand (your laptop, or an existing workspace)
 
 ```bash
 git clone <this-repo-url> ~/dotfiles
 cd ~/dotfiles
-./install.sh          # symlinks config/ into ~/.claude (one-time)
-./sync-memory.sh pull # restores personal memory for every project
+./install.sh   # symlinks config/ into ~/.claude, wires both shells, pulls memory
+exec $SHELL -l # pick up the shell changes
 ```
 
 ## Day to day
 
-- Start of a session: `./sync-memory.sh pull`
+- `install.sh` already runs `sync-memory.sh pull`, so a fresh workspace
+  comes up with your memory in place.
 - End of a session: `./sync-memory.sh push` (stages, commits, and pushes
-  any memory that changed across all projects)
+  any memory that changed across all projects).
+- **`pull` never overwrites a file that already exists locally.** This is
+  load-bearing: because Coder re-runs `install.sh` on every workspace *start*,
+  an unconditional copy would silently revert memory you edited but hadn't
+  pushed. Use `./sync-memory.sh pull --force` to deliberately overwrite local
+  memory from the repo.
 - `config/settings.json` is a live symlink after `install.sh` runs, so
   edits there are effective immediately — commit + push when you want
   other environments to pick them up.
+- `install.sh` is idempotent and safe to re-run. Shell wiring lives in a
+  delimited `# >>> zamp dotfiles >>>` block that gets replaced rather than
+  appended, so re-running never duplicates it or leaves a stale path.

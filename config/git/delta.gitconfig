@@ -1,0 +1,28 @@
+# Wired into ~/.gitconfig by install.sh via:
+#   git config --global --add include.path <this file>
+#
+# An include rather than direct keys, so this can never clobber or duplicate
+# your own gitconfig -- and removing the include line cleanly disables it.
+#
+# delta costs nothing at shell startup: it is a pager git invokes, not a hook.
+
+[core]
+	pager = delta
+
+[interactive]
+	diffFilter = delta --color-only
+
+[delta]
+	line-numbers = true
+	side-by-side = false
+	# n/N to jump between files. Needs a modern `less`; harmless where the
+	# system less is too old, you just lose the jump keys.
+	navigate = true
+
+[merge]
+	# zdiff3 shows the common ancestor in a conflict, which makes a three-way
+	# merge far easier to reason about than the default two-sided view.
+	conflictstyle = zdiff3
+
+[diff]
+	colorMoved = default
