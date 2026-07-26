@@ -17,6 +17,10 @@ link() {
 mkdir -p "$CLAUDE_DIR"
 link "$REPO_DIR/config/settings.json" "$CLAUDE_DIR/settings.json"
 
+# User-global memory pointer: tells every Claude Code instance that my Obsidian
+# vault is the knowledge-base layer of its memory, and where to find it.
+link "$REPO_DIR/config/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
+
 if [ -n "$(ls -A "$REPO_DIR/config/commands" 2>/dev/null | grep -v .gitkeep)" ]; then
   link "$REPO_DIR/config/commands" "$CLAUDE_DIR/commands"
 fi
@@ -261,6 +265,27 @@ wire_rc "$HOME/.zshrc"
 if ! command -v zsh >/dev/null 2>&1; then
   echo "note: zsh is not installed here; ~/.zshrc is wired and ready for when it is"
 fi
+
+# Clone (or fast-forward) the Obsidian vault that is the knowledge-base layer of
+# Claude's memory; the pointer in config/CLAUDE.md sends Claude here. A full clone
+# (not --depth 1) so notes edited in the workspace can be committed and pushed
+# back. Non-fatal: a private-repo auth failure must never fail the workspace build.
+sync_obsidian_vault() {
+  local repo="https://github.com/SahilZ0810/obsidian-vault.git"
+  local dest="$HOME/obsidian-vault"
+  command -v git >/dev/null 2>&1 || { echo "obsidian vault: git absent, skipping"; return 0; }
+  if [ -d "$dest/.git" ]; then
+    git -C "$dest" pull --quiet --ff-only 2>/dev/null \
+      && echo "obsidian vault: updated" \
+      || echo "obsidian vault: could not fast-forward, keeping local checkout"
+  else
+    git clone --quiet "$repo" "$dest" 2>/dev/null \
+      && echo "obsidian vault: cloned to $dest" \
+      || echo "obsidian vault: clone failed (check this workspace's GitHub auth), continuing"
+  fi
+}
+
+sync_obsidian_vault || echo "obsidian vault sync failed, continuing"
 
 # Coder only runs this script, so nothing else would restore memory in a fresh
 # workspace. Non-fatal: a memory problem must not fail the workspace build.
