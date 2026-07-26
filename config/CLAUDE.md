@@ -33,8 +33,12 @@ something durable and ask to keep it (or it clearly belongs in the knowledge bas
 Ask before creating vault files unless I've told you to save something.
 
 ## Sync (important for Coder workspaces)
-The vault is a private git repo (`SahilZ0810/obsidian-vault`). It is cloned to
-`~/obsidian-vault` at workspace start and is a full clone, so it can be committed to.
+The vault is a private git repo (`SahilZ0810/obsidian-vault`). `install.sh` clones it
+to `~/obsidian-vault` at workspace start (full clone, so it can be committed to).
+- **Auth:** the workspace's default git credential is org-scoped (Zampfi) and cannot
+  read this personal repo. A fine-grained PAT in `~/.config/obsidian-vault-token`
+  (persistent home) is used via a repo-local credential helper. If `~/obsidian-vault`
+  is missing, the token is probably absent — create it, then re-run `install.sh`.
 - **Before relying on it in a workspace:** `git -C ~/obsidian-vault pull --ff-only`.
 - **After saving notes in a workspace:** `git -C ~/obsidian-vault add -A && commit && push`.
 - On the Mac, Obsidian's own Git plugin (or manual commits) keeps it current.

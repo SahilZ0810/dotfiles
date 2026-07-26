@@ -268,20 +268,42 @@ fi
 
 # Clone (or fast-forward) the Obsidian vault that is the knowledge-base layer of
 # Claude's memory; the pointer in config/CLAUDE.md sends Claude here. A full clone
-# (not --depth 1) so notes edited in the workspace can be committed and pushed
-# back. Non-fatal: a private-repo auth failure must never fail the workspace build.
+# (not --depth 1) so notes edited in the workspace can be committed and pushed back.
+#
+# Auth: in a Coder workspace the default git credential is org-scoped (Zampfi) and
+# CANNOT read this personal repo. So we use a fine-grained PAT via a dedicated
+# helper, wired ONLY into this repo. The `-c credential.helper=` empty value first
+# RESETS the inherited (org) helper list, so only our token helper is consulted
+# here — Zampfi repos are untouched. Non-fatal throughout: a missing token or auth
+# failure must never fail the workspace build.
 sync_obsidian_vault() {
   local repo="https://github.com/SahilZ0810/obsidian-vault.git"
   local dest="$HOME/obsidian-vault"
+  local cred="$REPO_DIR/config/obsidian-vault-credential.sh"
+  local token="${OBSIDIAN_VAULT_TOKEN_FILE:-$HOME/.config/obsidian-vault-token}"
   command -v git >/dev/null 2>&1 || { echo "obsidian vault: git absent, skipping"; return 0; }
+  chmod +x "$cred" 2>/dev/null || true
+
   if [ -d "$dest/.git" ]; then
     git -C "$dest" pull --quiet --ff-only 2>/dev/null \
       && echo "obsidian vault: updated" \
       || echo "obsidian vault: could not fast-forward, keeping local checkout"
+    return 0
+  fi
+
+  if [ ! -r "$token" ]; then
+    echo "obsidian vault: no token at $token — create a fine-grained PAT and save it there to enable sync; skipping"
+    return 0
+  fi
+
+  if git -c credential.helper= -c "credential.helper=$cred" clone --quiet "$repo" "$dest" 2>/dev/null; then
+    # Persist the token helper (reset inherited helpers first) so future
+    # pull/push from inside the workspace keep using the PAT, not the org token.
+    git -C "$dest" config --add credential.helper ""
+    git -C "$dest" config --add credential.helper "$cred"
+    echo "obsidian vault: cloned to $dest"
   else
-    git clone --quiet "$repo" "$dest" 2>/dev/null \
-      && echo "obsidian vault: cloned to $dest" \
-      || echo "obsidian vault: clone failed (check this workspace's GitHub auth), continuing"
+    echo "obsidian vault: clone failed even with token (check the PAT's repo scope), continuing"
   fi
 }
 
