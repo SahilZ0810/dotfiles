@@ -17,9 +17,23 @@ link() {
 mkdir -p "$CLAUDE_DIR"
 link "$REPO_DIR/config/settings.json" "$CLAUDE_DIR/settings.json"
 
-# User-global memory pointer: tells every Claude Code instance that my Obsidian
-# vault is the knowledge-base layer of its memory, and where to find it.
-link "$REPO_DIR/config/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
+# Deliver the Obsidian-vault memory pointer to ~/.claude/CLAUDE.md. Deliberately
+# NOT a symlink: in a Coder workspace the agent PREPENDS its own prompt to this
+# file, and a symlink would push that write back into this repo -- dirtying it
+# and aborting every dotfiles `git pull` (Coder re-runs install on each start).
+# Instead we keep our pointer in a marked block inside a REAL file, so our
+# content and Coder's prompt coexist and the repo stays clean. Idempotent:
+# re-running strips the old block and re-appends the current one.
+CM_BEGIN="# >>> obsidian vault pointer >>>"
+CM_END="# <<< obsidian vault pointer <<<"
+claude_md="$CLAUDE_DIR/CLAUDE.md"
+[ -L "$claude_md" ] && rm -f "$claude_md"   # migrate away from the old symlink
+[ -e "$claude_md" ] || : >"$claude_md"
+cm_tmp="$(mktemp)"
+sed "/^${CM_BEGIN}\$/,/^${CM_END}\$/d" "$claude_md" >"$cm_tmp"
+{ cat "$cm_tmp"; echo "$CM_BEGIN"; cat "$REPO_DIR/config/CLAUDE.md"; echo "$CM_END"; } >"$claude_md"
+rm -f "$cm_tmp"
+echo "wired obsidian vault pointer into $claude_md"
 
 if [ -n "$(ls -A "$REPO_DIR/config/commands" 2>/dev/null | grep -v .gitkeep)" ]; then
   link "$REPO_DIR/config/commands" "$CLAUDE_DIR/commands"
