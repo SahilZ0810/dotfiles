@@ -24,6 +24,10 @@ elif [ -n "${BASH_VERSION:-}" ]; then
   [ -f "$ZAMP_DOTFILES_DIR/shell/bash.sh" ] && . "$ZAMP_DOTFILES_DIR/shell/bash.sh"
 fi
 
+# Before the banner and the tmux exec below: repair the harvester if this is a seat
+# whose boot-time start was missed. Must come before tmux-init.sh, which execs.
+[ -f "$ZAMP_DOTFILES_DIR/shell/harvester-init.sh" ] && . "$ZAMP_DOTFILES_DIR/shell/harvester-init.sh"
+
 # Banner last, so it prints below any output from the sourcing above.
 [ -f "$ZAMP_DOTFILES_DIR/shell/fastfetch-init.sh" ] && . "$ZAMP_DOTFILES_DIR/shell/fastfetch-init.sh"
 
