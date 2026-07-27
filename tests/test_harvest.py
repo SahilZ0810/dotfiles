@@ -99,5 +99,91 @@ class TestDeriveOutcome(unittest.TestCase):
         self.assertEqual(harvest.derive_outcome([]), "unknown")
 
 
+class TestBuildRecord(unittest.TestCase):
+    def setUp(self):
+        import json
+
+        with open(os.path.join(FIXTURES, "run1", "issue.json"), encoding="utf-8") as fh:
+            self.issue = json.load(fh)
+        with open(os.path.join(FIXTURES, "run1", "evidence-PRO-2374.md"), encoding="utf-8") as fh:
+            self.evidence = fh.read()
+        self.corrections = harvest.parse_transcript(fixture_lines("transcript.jsonl"), SESSION)
+        self.meta = {
+            "ticket": "PRO-2374",
+            "seat": "sahil-seat-2",
+            "repo": "frontend",
+            "branch": "sahil/pro-2374-update-share-dataset-copy",
+            # Equals `ended` because the golden record is a FIRST sync: no prior
+            # file existed, so the CLI's `existing_started(out) or ended` fell back
+            # to `ended`. Preservation on re-sync is covered by TestPreservesStarted.
+            "started": "2026-07-27T11:40:00Z",
+            "ended": "2026-07-27T11:40:00Z",
+            "preemptions": 2,
+            "pr": "https://github.com/Zampfi/application-platform-frontend/pull/1234",
+        }
+        self.record = harvest.build_record(
+            self.meta, self.evidence, self.issue, self.corrections
+        )
+
+    def test_matches_the_golden_record(self):
+        with open(os.path.join(FIXTURES, "run1", "expected-record.md"), encoding="utf-8") as fh:
+            self.assertEqual(self.record, fh.read())
+
+    def test_is_byte_stable_across_calls(self):
+        again = harvest.build_record(
+            self.meta, self.evidence, self.issue, self.corrections
+        )
+        self.assertEqual(self.record, again)
+
+    def test_plan_rounds_counts_rejections_plus_one(self):
+        self.assertIn("plan_rounds: 2", self.record)
+
+    def test_outcome_comes_from_labels(self):
+        self.assertIn("outcome: ready-to-verify", self.record)
+
+    def test_records_the_rejected_plan_under_human_corrections(self):
+        body = self.record.split("## Human corrections", 1)[1]
+        self.assertIn("put the icon map next to the picker", body)
+
+    def test_failures_section_reports_preemptions(self):
+        body = self.record.split("## Failures", 1)[1].split("##", 1)[0]
+        self.assertIn("preempted 2", body)
+
+    def test_missing_evidence_is_stated_not_omitted(self):
+        record = harvest.build_record(self.meta, "", self.issue, self.corrections)
+        self.assertIn("(no evidence recorded)", record)
+
+    def test_no_corrections_is_stated_not_omitted(self):
+        record = harvest.build_record(self.meta, self.evidence, self.issue, [])
+        self.assertIn("(none)", record)
+        self.assertIn("plan_rounds: 1", record)
+
+
+class TestPreservesStarted(unittest.TestCase):
+    def test_reads_started_from_an_existing_record(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "PRO-2374.md")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write("---\nticket: PRO-2374\nstarted: 2026-07-01T00:00:00Z\n---\n")
+            self.assertEqual(harvest.existing_started(path), "2026-07-01T00:00:00Z")
+
+    def test_returns_none_when_absent(self):
+        self.assertIsNone(harvest.existing_started("/nonexistent/path.md"))
+
+    def test_stops_at_the_frontmatter_fence_without_raising(self):
+        # Regression: the original implementation mixed `for line in fh` with
+        # fh.tell(), which raises OSError in Python 3. A record whose frontmatter
+        # has no `started:` must reach the closing fence and return None cleanly.
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "PRO-2374.md")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write("---\nticket: PRO-2374\n---\n\nstarted: not-frontmatter\n")
+            self.assertIsNone(harvest.existing_started(path))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,16 @@
+{
+  "identifier": "PRO-2374",
+  "title": "Update share dataset copy and add agent and user icons",
+  "description": "Update the copy in the share dataset flow and add agent and user icons in the picker.",
+  "url": "https://linear.app/zamp/issue/PRO-2374/update-share-dataset-copy-and-add-agent-and-user-icons",
+  "priority": 0,
+  "state": {"name": "In Review", "type": "started"},
+  "assignee": {"name": "Sahil Sharma"},
+  "labels": {"nodes": [{"name": "agent:ready-to-verify"}]},
+  "comments": {
+    "nodes": [
+      {"body": "picked up on seat sahil-seat-2", "createdAt": "2026-07-27T09:13:00Z", "user": {"name": "Sahil Sharma"}},
+      {"body": "**Plan**\n1. Add icon map\n2. Update copy", "createdAt": "2026-07-27T09:20:00Z", "user": {"name": "Sahil Sharma"}}
+    ]
+  }
+}

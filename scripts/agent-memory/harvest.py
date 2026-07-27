@@ -138,3 +138,162 @@ def derive_outcome(labels):
         if label in labels:
             return label.split(":", 1)[1]
     return "unknown"
+
+
+def existing_started(path):
+    """Read `started:` out of an existing record so re-syncs don't reset it.
+
+    Only the frontmatter block is scanned. The fence is located with a line
+    counter rather than fh.tell(): mixing tell() with `for line in fh` raises
+    OSError ("telling position disabled by next() call") in Python 3.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for index, line in enumerate(fh):
+                if line.startswith("started:"):
+                    return line.split(":", 1)[1].strip()
+                if index > 0 and line.startswith("---"):
+                    break
+    except OSError:
+        return None
+    return None
+
+
+def _labels_of(issue):
+    return [n["name"] for n in ((issue.get("labels") or {}).get("nodes") or [])]
+
+
+def build_record(meta, evidence, issue, corrections):
+    """Render one run record. Deterministic: same inputs → identical bytes."""
+    labels = _labels_of(issue)
+    rejections = [c for c in corrections if c["kind"] == "plan-rejected"]
+    comments = (issue.get("comments") or {}).get("nodes") or []
+
+    lines = [
+        "---",
+        f"ticket: {meta['ticket']}",
+        f"seat: {meta['seat']}",
+        f"repo: {meta['repo']}",
+        f"branch: {meta['branch']}",
+        f"started: {meta['started']}",
+        f"ended: {meta['ended']}",
+        f"outcome: {derive_outcome(labels)}",
+        f"preemptions: {meta['preemptions']}",
+        f"plan_rounds: {1 + len(rejections)}",
+        f"pr: {meta.get('pr') or ''}",
+        "---",
+        "",
+        f"# {meta['ticket']} — {issue.get('title') or '(no title)'}",
+        "",
+        f"{issue.get('url') or ''}",
+        "",
+        "## Timeline",
+        "",
+        f"- state: {((issue.get('state') or {}).get('name')) or '-'}",
+        f"- labels: {', '.join(labels) or '-'}",
+    ]
+    for comment in comments:
+        who = (comment.get("user") or {}).get("name") or "?"
+        lines.append(f"- {comment.get('createdAt', '')} — comment by {who}")
+    lines += ["", "## What I tested", ""]
+    lines.append(evidence.strip() if evidence.strip() else "(no evidence recorded)")
+    lines += ["", "## Human corrections", ""]
+    if corrections:
+        for c in corrections:
+            lines.append(f"- **{c['kind']}** · {c['timestamp']}")
+            lines.append(f"  > {c['text']}")
+    else:
+        lines.append("(none)")
+    lines += ["", "## Failures", ""]
+    failures = []
+    if int(meta["preemptions"]) > 0:
+        failures.append(f"- preempted {meta['preemptions']} time(s)")
+    for c in rejections:
+        failures.append(f"- plan rejected: {c['text']}")
+    if derive_outcome(labels) == "blocked":
+        failures.append(f"- ended blocked (labels: {', '.join(labels)})")
+    lines += failures or ["(none)"]
+    lines += ["", "## Linear comments", ""]
+    if comments:
+        for comment in comments:
+            who = (comment.get("user") or {}).get("name") or "?"
+            lines.append(f"### {who} · {comment.get('createdAt', '')}")
+            lines.append("")
+            lines.append(comment.get("body") or "")
+            lines.append("")
+    else:
+        lines.append("(none)")
+    return "\n".join(lines).rstrip("\n") + "\n"
+
+
+def main(argv=None):
+    import argparse
+    import os
+
+    parser = argparse.ArgumentParser(description="Write one agent-run record.")
+    parser.add_argument("--current", required=True, help="path to current.json")
+    parser.add_argument("--issue", required=True, help="path to linear.py get --json output")
+    parser.add_argument("--out", required=True, help="record path to write")
+    parser.add_argument("--evidence", default=None)
+    parser.add_argument("--transcript", default=None)
+    parser.add_argument("--seat", default=os.environ.get("CODER_WORKSPACE_NAME", "unknown"))
+    parser.add_argument("--branch", default="-")
+    parser.add_argument("--preemptions", type=int, default=0)
+    parser.add_argument("--pr", default="")
+    parser.add_argument("--ended", default="")
+    args = parser.parse_args(argv)
+
+    def read(path):
+        if not path:
+            return ""
+        try:
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                return fh.read()
+        except OSError:
+            return ""
+
+    try:
+        current = json.loads(read(args.current) or "{}")
+        issue = json.loads(read(args.issue) or "{}")
+    except ValueError:
+        return 2
+    ticket = current.get("ticket") or issue.get("identifier")
+    if not ticket:
+        return 2
+
+    corrections = []
+    if args.transcript:
+        try:
+            with open(args.transcript, encoding="utf-8", errors="replace") as fh:
+                corrections = parse_transcript(fh.readlines(), current.get("session_id"))
+        except OSError:
+            corrections = []
+
+    ended = args.ended or _now()
+    meta = {
+        "ticket": ticket,
+        "seat": args.seat,
+        "repo": current.get("repo") or "-",
+        "branch": args.branch,
+        "started": existing_started(args.out) or ended,
+        "ended": ended,
+        "preemptions": args.preemptions,
+        "pr": args.pr,
+    }
+    record = build_record(meta, read(args.evidence), issue, corrections)
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+    with open(args.out, "w", encoding="utf-8") as fh:
+        fh.write(record)
+    return 0
+
+
+def _now():
+    import datetime
+
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(main())

@@ -1,0 +1,3 @@
+- `npm run test` → 412 passed, 0 failed
+- pre-commit → clean
+- browser check: picker renders agent + user icons in dark mode
