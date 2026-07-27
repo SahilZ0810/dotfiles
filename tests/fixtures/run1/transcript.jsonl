@@ -1,0 +1,11 @@
+{"type":"user","sessionId":"11111111-2222-3333-4444-555555555555","timestamp":"2026-07-27T09:12:00Z","message":{"role":"user","content":"/agent-loop PRO-2374"}}
+{"type":"assistant","sessionId":"11111111-2222-3333-4444-555555555555","timestamp":"2026-07-27T09:20:00Z","message":{"role":"assistant","content":[{"type":"text","text":"Plan posted to Linear."}]}}
+{"type":"user","sessionId":"11111111-2222-3333-4444-555555555555","timestamp":"2026-07-27T09:31:00Z","message":{"role":"user","content":"don't add a new util file, put the icon map next to the picker"}}
+{"type":"user","sessionId":"11111111-2222-3333-4444-555555555555","timestamp":"2026-07-27T09:31:30Z","message":{"role":"user","content":[{"type":"tool_result","content":"not-approval: \"don't add a new util file, put the icon map next to the picker\" is not an explicit standalone approval — gate stays closed; treat as plan feedback and re-ask."}]}}
+{"type":"user","sessionId":"11111111-2222-3333-4444-555555555555","timestamp":"2026-07-27T09:40:00Z","message":{"role":"user","content":[{"type":"tool_result","content":[{"type":"text","text":"total 16\ndrwxrwsr-x 4 coder coder 4096 Jul 27 07:50 .\n"}]}]}}
+{"type":"user","sessionId":"11111111-2222-3333-4444-555555555555","timestamp":"2026-07-27T09:55:00Z","message":{"role":"user","content":"approved"}}
+{"type":"user","sessionId":"11111111-2222-3333-4444-555555555555","timestamp":"2026-07-27T09:55:10Z","message":{"role":"user","content":[{"type":"tool_result","content":"unlocked: implementation gate opened for PRO-2374"}]}}
+{"type":"user","sessionId":"99999999-9999-9999-9999-999999999999","timestamp":"2026-07-27T10:00:00Z","message":{"role":"user","content":"this belongs to a different session"}}
+{"type":"user","sessionId":"11111111-2222-3333-4444-555555555555","timestamp":"2026-07-27T10:05:00Z","message":{"role":"user","content":"<system-reminder>ignore me</system-reminder>"}}
+{"type":"user","sessionId":"11111111-2222-3333-4444-555555555555","timestamp":"2026-07-27T10:06:00Z","content":"legacy top-level content shape"}
+not valid json at all
