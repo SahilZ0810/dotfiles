@@ -159,6 +159,44 @@ class TestBuildRecord(unittest.TestCase):
         self.assertIn("plan_rounds: 1", record)
 
 
+class TestUnchangedExceptEnded(unittest.TestCase):
+    """A re-sync of an unchanged run must not rewrite the record.
+
+    Otherwise every 3-minute harvest cycle commits and pushes a record whose only
+    difference is its `ended:` stamp.
+    """
+
+    def _record(self, ended):
+        return "---\nticket: PRO-1\nended: %s\noutcome: planning\n---\n\nbody\n" % ended
+
+    def test_true_when_only_ended_differs(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "PRO-1.md")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(self._record("2026-07-27T10:00:00Z"))
+            self.assertTrue(
+                harvest.unchanged_except_ended(self._record("2026-07-27T10:03:00Z"), path)
+            )
+
+    def test_false_when_the_body_changed(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "PRO-1.md")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(self._record("2026-07-27T10:00:00Z"))
+            newer = self._record("2026-07-27T10:03:00Z").replace("planning", "pr-open")
+            self.assertFalse(harvest.unchanged_except_ended(newer, path))
+
+    def test_false_when_there_is_no_existing_record(self):
+        self.assertFalse(
+            harvest.unchanged_except_ended(self._record("2026-07-27T10:00:00Z"),
+                                           "/nonexistent/PRO-1.md")
+        )
+
+
 class TestPreservesStarted(unittest.TestCase):
     def test_reads_started_from_an_existing_record(self):
         import tempfile

@@ -226,6 +226,29 @@ def build_record(meta, evidence, issue, corrections):
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
+def _without_ended(record):
+    return "\n".join(
+        line for line in record.splitlines() if not line.startswith("ended:")
+    )
+
+
+def unchanged_except_ended(new_record, path):
+    """True when `path` already holds this record apart from its `ended:` stamp.
+
+    The harvester re-runs every few minutes for the whole life of a run, and
+    `ended` is wall-clock. Without this check each cycle would rewrite the file,
+    commit, and push — filling the vault's history with no-op churn. Skipping the
+    write makes `ended` mean "when this run last actually changed", which is the
+    more useful reading anyway.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            old = fh.read()
+    except OSError:
+        return False
+    return _without_ended(old) == _without_ended(new_record)
+
+
 def main(argv=None):
     import argparse
     import os
@@ -281,6 +304,8 @@ def main(argv=None):
         "pr": args.pr,
     }
     record = build_record(meta, read(args.evidence), issue, corrections)
+    if unchanged_except_ended(record, args.out):
+        return 0
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as fh:
         fh.write(record)
