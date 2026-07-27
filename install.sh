@@ -133,6 +133,31 @@ install_agent_memory() {
   return 0
 }
 
+# run_pool_boot_hooks — agent-pool bring-up on every workspace boot.
+#
+# Required by pool-onboard Phase 6: Coder cannot push to a personal dotfiles repo,
+# so the pool's boot behaviour has to live HERE, in the script Coder re-runs on each
+# start. Both blocks are guarded on their role marker (written by provision-box.sh),
+# so this is a no-op on the Mac and on any non-pool workspace.
+run_pool_boot_hooks() {
+  # HQ: re-arm the orchestrator loop. start-orchestrator.sh itself no-ops unless
+  # ~/agent-pool/hot exists, so a paused pool stays paused across reboots.
+  if [ -f "$HOME/.agent-pool-hq" ] && [ -x "$HOME/agent-pool/start-orchestrator.sh" ]; then
+    "$HOME/agent-pool/start-orchestrator.sh" || echo "  orchestrator start failed, continuing"
+  fi
+
+  # Seat: resume the pinned session for whatever ticket was in flight when the spot
+  # node was reclaimed. Ordering note -- on a box's FIRST boot the dotfiles run before
+  # provisioning, so both guards miss and this correctly does nothing.
+  if [ -f "$HOME/.agent-pool-seat" ] && [ -f "$HOME/zamp/zamp_dev_setup/skills/_shared/start-seat.sh" ]; then
+    mkdir -p "$HOME/agent-pool"
+    bash "$HOME/zamp/zamp_dev_setup/skills/_shared/start-seat.sh" \
+      >>"$HOME/agent-pool/seat-boot.log" 2>&1 || true
+  fi
+
+  return 0
+}
+
 if [ "$_agent_memory_source_only" = "1" ]; then
   return 0 2>/dev/null || exit 0
 fi
@@ -448,6 +473,8 @@ sync_obsidian_vault || echo "obsidian vault sync failed, continuing"
 
 echo "agent memory:"
 install_agent_memory || echo "agent memory setup failed, continuing"
+
+run_pool_boot_hooks || echo "pool boot hooks failed, continuing"
 
 # Coder only runs this script, so nothing else would restore memory in a fresh
 # workspace. Non-fatal: a memory problem must not fail the workspace build.

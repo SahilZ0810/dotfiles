@@ -101,5 +101,47 @@ class InstallRoleCase(unittest.TestCase):
             self.assertEqual(fh.read().strip(), "2")
 
 
+class PoolBootHooksCase(unittest.TestCase):
+    """pool-onboard Phase 6 requires the dotfiles entrypoint to carry these hooks,
+    because Coder cannot push to a personal dotfiles repo."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+
+    def hooks(self):
+        return subprocess.run(
+            ["bash", "-c", f'. "{INSTALL}" 2>/dev/null; run_pool_boot_hooks; echo "rc=$?"'],
+            env={**os.environ, "HOME": self.tmp, "AGENT_MEMORY_SOURCE_ONLY": "1"},
+            capture_output=True, text=True,
+        )
+
+    def test_no_op_without_role_markers(self):
+        r = self.hooks()
+        self.assertIn("rc=0", r.stdout)
+
+    def test_hq_marker_alone_does_not_fail(self):
+        # start-orchestrator.sh is placed by provision-box.sh, not by us. On a box's
+        # first boot the dotfiles run first, so the guard must tolerate its absence.
+        open(os.path.join(self.tmp, ".agent-pool-hq"), "w").close()
+        r = self.hooks()
+        self.assertIn("rc=0", r.stdout)
+
+    def test_hq_marker_runs_the_orchestrator_when_present(self):
+        open(os.path.join(self.tmp, ".agent-pool-hq"), "w").close()
+        pool_dir = os.path.join(self.tmp, "agent-pool")
+        os.makedirs(pool_dir)
+        script = os.path.join(pool_dir, "start-orchestrator.sh")
+        with open(script, "w") as fh:
+            fh.write("#!/usr/bin/env bash\necho ORCHESTRATOR_STARTED\n")
+        os.chmod(script, 0o755)
+        r = self.hooks()
+        self.assertIn("ORCHESTRATOR_STARTED", r.stdout)
+
+    def test_seat_marker_alone_does_not_fail(self):
+        open(os.path.join(self.tmp, ".agent-pool-seat"), "w").close()
+        r = self.hooks()
+        self.assertIn("rc=0", r.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
