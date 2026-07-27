@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+"""pool — Mac-side console for the agent pool.
+
+Read-only for status; the only write path is `pool do`, which files a Linear issue
+and always asks first. The pool itself runs on Coder and does not depend on this
+script — closing the laptop must never stop work.
+"""
+
+import argparse
+import datetime
+import json
+import os
+import subprocess
+import sys
+
+HQ = os.environ.get("AGENT_POOL_HQ", "sahil-hq")
+LINEAR_REMOTE = "~/zamp/zamp_dev_setup/skills/_shared/linear.py"
+TEAM = "PRO"
+
+
+def _run(cmd, **kw):
+    return subprocess.run(cmd, capture_output=True, text=True, **kw)
+
+
+def heartbeat_state(stamp, now, max_age_minutes=10):
+    """ON only if the harvester pushed within max_age_minutes. Absent or unparseable
+    reads as OFF: a silent memory failure is the one thing we refuse to hide."""
+    if not stamp:
+        return "OFF"
+    try:
+        seen = datetime.datetime.strptime(stamp.strip(), "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=datetime.timezone.utc
+        )
+    except (ValueError, AttributeError):
+        return "OFF"
+    return "ON" if (now - seen) <= datetime.timedelta(minutes=max_age_minutes) else "OFF"
+
+
+def render_status(registry, coder_rows, heartbeats, now):
+    seats = (registry or {}).get("seats") or {}
+    if not seats:
+        return "no seats in the registry — has /pool-onboard run?"
+    header = f"{'SEAT':18} {'POWER':9} {'STATUS':16} {'TICKET':10} {'MEM':4} NOTE"
+    lines = [header, "-" * len(header)]
+    for name in sorted(seats):
+        seat = seats[name] or {}
+        power = coder_rows.get(name, "?")
+        status = seat.get("status") or "-"
+        ticket = seat.get("ticket") or "-"
+        mem = heartbeat_state(heartbeats.get(name), now)
+        note = ""
+        busy = status not in ("free", "-")
+        if busy and power != "Started":
+            note = "RESURRECT — busy but not running"
+        elif seat.get("pr_url"):
+            note = seat["pr_url"]
+        lines.append(f"{name:18} {power:9} {status:16} {ticket:10} {mem:4} {note}")
+    return "\n".join(lines)
+
+
+def _coder_rows():
+    out = _run(["coder", "list"]).stdout
+    rows = {}
+    for line in out.splitlines()[1:]:
+        parts = line.split()
+        if len(parts) >= 3:
+            rows[parts[0].split("/")[-1]] = parts[2]
+    return rows
+
+
+def _registry():
+    r = _run(["coder", "ssh", HQ, "--", "cat", "~/agent-pool/seats.json"])
+    try:
+        return json.loads(r.stdout)
+    except ValueError:
+        return {}
+
+
+def _heartbeats(seat_names):
+    beats = {}
+    for name in seat_names:
+        r = _run(["coder", "ssh", name, "--", "cat", "~/agent-pool/memory-heartbeat"])
+        beats[name] = r.stdout.strip() or None
+    return beats
+
+
+def cmd_status(_args):
+    registry = _registry()
+    seats = list((registry.get("seats") or {}).keys())
+    now = datetime.datetime.now(datetime.timezone.utc)
+    print(render_status(registry, _coder_rows(), _heartbeats(seats), now))
+    return 0
+
+
+def cmd_do(args):
+    ask = args.text.strip()
+    if not ask:
+        print("nothing to file", file=sys.stderr)
+        return 2
+
+    prompt = (
+        "Turn this into a Linear ticket for an autonomous coding agent. Output exactly:\n"
+        "line 1 = the title (no prefix), then a blank line, then a markdown body with "
+        "Context, Scope, and Acceptance criteria. Be concrete; the agent has the repos "
+        "but not my head. No preamble.\n\n"
+        f"Ask: {ask}"
+    )
+    draft = _run(["claude", "-p", prompt]).stdout.strip()
+    if not draft:
+        print("could not draft a ticket (is `claude` on PATH?)", file=sys.stderr)
+        return 1
+    title, _, body = draft.partition("\n")
+    title, body = title.strip(), body.strip()
+
+    print("\n--- draft ---")
+    print(f"title: {title}\n")
+    print(body)
+    print("--- end draft ---\n")
+    print(f"File this on team {TEAM}, assigned to me, labels: agent:queued, adhoc")
+    if input("proceed? [y/N] ").strip().lower() not in ("y", "yes"):
+        print("aborted — nothing filed")
+        return 0
+
+    # Stream the body straight to HQ; no local tempfile to leak or clean up.
+    remote_body = "/tmp/pool-do-body.md"
+    _run(["coder", "ssh", HQ, "--", f"cat > {remote_body}"], input=body + "\n")
+    created = _run([
+        "coder", "ssh", HQ, "--",
+        f"python3 {LINEAR_REMOTE} create-issue --team {TEAM} "
+        f"--title {json.dumps(title)} --body-file {remote_body} "
+        f"--label agent:queued --label adhoc",
+    ])
+    line = created.stdout.strip()
+    if not line:
+        print(f"create failed: {created.stderr.strip()}", file=sys.stderr)
+        return 1
+    print(line)
+    ident = line.split()[0]
+    _run(["coder", "ssh", HQ, "--", f"python3 {LINEAR_REMOTE} assign {ident} --me"])
+    print(f"{ident} assigned to you and queued — HQ will pick it up on its next tick")
+    return 0
+
+
+def cmd_lessons(_args):
+    for candidate in (
+        os.path.expanduser("~/obsidian-vault/wiki/agent-lessons.md"),
+        os.path.expanduser("~/Documents/Obsidian Vault/wiki/agent-lessons.md"),
+    ):
+        if os.path.exists(candidate):
+            with open(candidate, encoding="utf-8") as fh:
+                sys.stdout.write(fh.read())
+            return 0
+    print("no lessons note yet — has /retro run on HQ?", file=sys.stderr)
+    return 1
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="pool", description="agent pool console")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("status", help="seat/ticket/memory table").set_defaults(fn=cmd_status)
+    p_do = sub.add_parser("do", help="file an ad-hoc ticket (asks first)")
+    p_do.add_argument("text")
+    p_do.set_defaults(fn=cmd_do)
+    sub.add_parser("lessons", help="print distilled lessons").set_defaults(fn=cmd_lessons)
+    args = parser.parse_args(argv)
+    return args.fn(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
