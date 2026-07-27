@@ -4,6 +4,17 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_DIR="$HOME/.claude"
 
+# AGENT_MEMORY_SOURCE_ONLY lets a caller `source` this file to get its function
+# definitions WITHOUT running the installer. It exists for tests/test_install_roles.py,
+# which exercises install_agent_memory in a sandboxed $HOME: without it, sourcing would
+# download every pinned CLI tool and clone every zsh plugin on each test. Production
+# runs never set it, so the installer's behaviour is unchanged.
+if [ -n "${AGENT_MEMORY_SOURCE_ONLY:-}" ]; then
+  _agent_memory_source_only=1
+else
+  _agent_memory_source_only=0
+fi
+
 link() {
   local src="$1" dest="$2"
   if [ -e "$dest" ] && [ ! -L "$dest" ]; then
@@ -13,6 +24,118 @@ link() {
   ln -sfn "$src" "$dest"
   echo "linked $dest -> $src"
 }
+
+AGENT_LESSONS_BEGIN="# >>> agent lessons >>>"
+AGENT_LESSONS_END="# <<< agent lessons <<<"
+
+# install_agent_memory — role-aware setup for the cross-ticket memory layer.
+#   ~/.agent-pool-hq   -> HQ: retro command + distiller schedule
+#   ~/.agent-pool-seat -> seat: harvester daemon
+#   neither            -> Mac/plain box: lessons block only
+# The lessons block goes on ALL roles: the same rules should apply when I work by
+# hand. Non-fatal throughout -- a memory problem must never fail a workspace build,
+# so every risky step is guarded and the function always returns 0.
+install_agent_memory() {
+  local mem_dir="$REPO_DIR/scripts/agent-memory"
+  local claude_md="$CLAUDE_DIR/CLAUDE.md"
+  local vault block tmp
+
+  mkdir -p "$CLAUDE_DIR" "$HOME/agent-pool"
+
+  # Count a restart as a preemption when a ticket was already in flight. This is
+  # how run records learn `preemptions:` without any change to the shared pool code.
+  if [ -f "$HOME/.agent-pool-seat" ] && [ -f "$HOME/agent-pool/current.json" ]; then
+    local tkt count_file n
+    tkt="$(python3 -c 'import json,os;print(json.load(open(os.environ["HOME"]+"/agent-pool/current.json")).get("ticket") or "")' 2>/dev/null || true)"
+    if [ -n "$tkt" ]; then
+      count_file="$HOME/agent-pool/preemptions-$tkt"
+      n=0; [ -f "$count_file" ] && n="$(tr -dc '0-9' <"$count_file" 2>/dev/null || echo 0)"
+      [ -z "$n" ] && n=0
+      echo "$((n + 1))" >"$count_file"
+      echo "  counted a restart for $tkt (preemptions=$((n + 1)))"
+    fi
+  fi
+
+  # --- lessons block (every role) ---
+  vault=""
+  if [ -f "$mem_dir/common.sh" ]; then
+    . "$mem_dir/common.sh"
+    vault="$(vault_root 2>/dev/null || true)"
+  fi
+  if [ -n "$vault" ]; then
+    block="$(python3 "$mem_dir/lessons_block.py" \
+      --lessons "$vault/wiki/agent-lessons.md" \
+      --profile "$vault/wiki/how-sahil-works.md" 2>/dev/null || true)"
+  else
+    block=""
+    echo "  no vault yet — skipping lessons block"
+  fi
+  if [ -n "$vault" ] && [ -z "$block" ]; then
+    echo "  vault has no lessons yet — nothing to inject"
+  fi
+
+  # Never write THROUGH a symlink that resolves into this repo. The main installer
+  # deletes the legacy ~/.claude/CLAUDE.md symlink before we run, but this function
+  # is also called standalone (tests, manual re-runs) -- and following the link there
+  # would commit the generated block into the tracked config/CLAUDE.md and ship it
+  # to every workspace.
+  if [ -L "$claude_md" ] && case "$(readlink "$claude_md")" in "$REPO_DIR"/*) true ;; *) false ;; esac; then
+    echo "  $claude_md is a symlink into this repo — refusing to inject (run the full installer to migrate it)"
+    return 0
+  fi
+
+  [ -e "$claude_md" ] || : >"$claude_md"
+  tmp="$(mktemp)"
+  sed "/^${AGENT_LESSONS_BEGIN}\$/,/^${AGENT_LESSONS_END}\$/d" "$claude_md" >"$tmp"
+  if [ -n "$block" ]; then
+    {
+      cat "$tmp"
+      echo "$AGENT_LESSONS_BEGIN"
+      printf '%s\n' "$block"
+      echo "$AGENT_LESSONS_END"
+    } >"$claude_md"
+    echo "  injected lessons block into $claude_md"
+  else
+    cat "$tmp" >"$claude_md"
+  fi
+  rm -f "$tmp"
+
+  # --- role-specific ---
+  if [ -f "$HOME/.agent-pool-seat" ]; then
+    if [ -n "${AGENT_MEMORY_NO_START:-}" ]; then
+      echo "  harvester start suppressed (AGENT_MEMORY_NO_START)"
+    elif command -v tmux >/dev/null 2>&1; then
+      if tmux has-session -t agent-memory 2>/dev/null; then
+        echo "  harvester already running (tmux:agent-memory)"
+      else
+        setsid tmux new-session -d -s agent-memory \
+          "bash -lc 'bash $mem_dir/harvest.sh --daemon'" 2>/dev/null \
+          && echo "  harvester up (tmux:agent-memory)" \
+          || echo "  could not start harvester, continuing"
+      fi
+    else
+      echo "  tmux absent — harvester not started"
+    fi
+  fi
+
+  if [ -f "$HOME/.agent-pool-hq" ]; then
+    echo "  HQ role: run /retro daily (see config/commands/retro.md)"
+  fi
+
+  # Guarded on the file existing so a checkout predating bin/pool never leaves a
+  # dangling ~/.local/bin/pool behind.
+  if [ "$(uname -s)" = "Darwin" ] && [ -f "$REPO_DIR/bin/pool" ]; then
+    mkdir -p "$HOME/.local/bin"
+    ln -sfn "$REPO_DIR/bin/pool" "$HOME/.local/bin/pool" 2>/dev/null \
+      && echo "  linked pool CLI -> ~/.local/bin/pool" || true
+  fi
+
+  return 0
+}
+
+if [ "$_agent_memory_source_only" = "1" ]; then
+  return 0 2>/dev/null || exit 0
+fi
 
 mkdir -p "$CLAUDE_DIR"
 link "$REPO_DIR/config/settings.json" "$CLAUDE_DIR/settings.json"
@@ -322,6 +445,9 @@ sync_obsidian_vault() {
 }
 
 sync_obsidian_vault || echo "obsidian vault sync failed, continuing"
+
+echo "agent memory:"
+install_agent_memory || echo "agent memory setup failed, continuing"
 
 # Coder only runs this script, so nothing else would restore memory in a fresh
 # workspace. Non-fatal: a memory problem must not fail the workspace build.
