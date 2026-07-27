@@ -7,6 +7,7 @@ script — closing the laptop must never stop work.
 """
 
 import argparse
+import base64
 import datetime
 import json
 import os
@@ -20,6 +21,17 @@ TEAM = "PRO"
 
 def _run(cmd, **kw):
     return subprocess.run(cmd, capture_output=True, text=True, **kw)
+
+
+def remote_write_cmd(path, content):
+    """Shell command that writes `content` to `path` on a workspace.
+
+    Deliberately does NOT pipe over stdin: `coder ssh` allocates a PTY and never
+    sees EOF on piped input, so it hangs forever instead of erroring. base64 keeps
+    the payload to [A-Za-z0-9+/=], so no quoting or newline can break the command.
+    """
+    blob = base64.b64encode(content.encode("utf-8")).decode("ascii")
+    return f"echo {blob} | base64 -d > {path}"
 
 
 def heartbeat_state(stamp, now, max_age_minutes=10):
@@ -121,9 +133,8 @@ def cmd_do(args):
         print("aborted — nothing filed")
         return 0
 
-    # Stream the body straight to HQ; no local tempfile to leak or clean up.
     remote_body = "/tmp/pool-do-body.md"
-    _run(["coder", "ssh", HQ, "--", f"cat > {remote_body}"], input=body + "\n")
+    _run(["coder", "ssh", HQ, "--", remote_write_cmd(remote_body, body + "\n")])
     created = _run([
         "coder", "ssh", HQ, "--",
         f"python3 {LINEAR_REMOTE} create-issue --team {TEAM} "

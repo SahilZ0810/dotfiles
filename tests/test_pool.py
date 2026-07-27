@@ -32,6 +32,29 @@ class TestHeartbeatState(unittest.TestCase):
         self.assertEqual(pool.heartbeat_state("2026-07-27T11:50:01Z", NOW), "ON")
 
 
+class TestRemoteWriteCmd(unittest.TestCase):
+    """Regression: piping over `coder ssh` hangs forever (PTY, never sees EOF),
+    which is how the token-distribution command wedged. The body must travel
+    inside the command, not on stdin."""
+
+    def test_round_trips_awkward_content(self):
+        import base64 as b64
+        import re
+
+        body = "## Scope\n- don't use `Tooltip`\n- \"quoted\" & $VAR\n"
+        cmd = pool.remote_write_cmd("/tmp/x.md", body)
+        blob = re.search(r"echo (\S+) \| base64 -d", cmd).group(1)
+        self.assertEqual(b64.b64decode(blob).decode("utf-8"), body)
+
+    def test_payload_is_shell_safe(self):
+        cmd = pool.remote_write_cmd("/tmp/x.md", "a'b\"c\n$(rm -rf /)\n")
+        blob = cmd.split("echo ", 1)[1].split(" |", 1)[0]
+        self.assertRegex(blob, r"^[A-Za-z0-9+/=]+$")
+
+    def test_writes_to_the_requested_path(self):
+        self.assertIn("> /tmp/pool-do-body.md", pool.remote_write_cmd("/tmp/pool-do-body.md", "x"))
+
+
 class TestRenderStatus(unittest.TestCase):
     def setUp(self):
         self.registry = {
