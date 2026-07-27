@@ -28,15 +28,23 @@ cycle() {
     return 0
   fi
 
+  # From here the vault is reachable, so the memory layer is HEALTHY even when there
+  # is nothing to record. Idle seats must still beat: `pool status` reads the heartbeat
+  # to distinguish a broken harvester from an idle one, and seats are idle most of the
+  # time. Without this, MEM sits permanently OFF and a real failure hides in the noise.
+  beat() { printf '%s\n' "$(now_utc)" >"$POOL_DIR/memory-heartbeat"; }
+
   current="$POOL_DIR/current.json"
   if [ ! -f "$current" ]; then
     echo "harvest: no current.json — seat is idle, nothing to record"
+    beat
     return 0
   fi
 
   ticket="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("ticket") or "")' "$current" 2>/dev/null)"
   if [ -z "$ticket" ]; then
     echo "harvest: current.json has no ticket — skipping"
+    beat
     return 0
   fi
 
@@ -85,7 +93,7 @@ cycle() {
     return 0
   fi
 
-  push_record "$vault" "$ticket" && printf '%s\n' "$(now_utc)" >"$POOL_DIR/memory-heartbeat"
+  push_record "$vault" "$ticket" && beat
   return 0
 }
 

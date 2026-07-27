@@ -110,6 +110,15 @@ class HarvestShCase(unittest.TestCase):
             os.path.exists(os.path.join(self.vault, "reports", "agent-runs", "PRO-2374.md"))
         )
 
+    def test_idle_seat_with_a_vault_still_heartbeats(self):
+        """MEM must mean 'harvester alive and vault reachable', not 'has work'.
+        Seats are idle most of the time; if idle read as OFF, pool status would sit
+        permanently red and a real failure would hide in the noise."""
+        os.remove(os.path.join(self.pool, "current.json"))
+        self.run_once()
+        beat = os.path.join(self.pool, "memory-heartbeat")
+        self.assertTrue(os.path.exists(beat))
+
     def test_exits_zero_without_a_vault(self):
         r = self.run_once({"AGENT_MEMORY_VAULT": os.path.join(self.tmp, "nope")})
         self.assertEqual(r.returncode, 0)
