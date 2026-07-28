@@ -471,6 +471,22 @@ sync_obsidian_vault() {
 
 sync_obsidian_vault || echo "obsidian vault sync failed, continuing"
 
+# This repo (REPO_DIR) is itself the personal SahilZ0810/dotfiles checkout, so
+# it hits the same org-vs-personal auth gap as the vault: git-credential-coder
+# can't push here. Wire the same PAT-based helper pattern into ITS OWN local
+# git config so sync-memory.sh push (and any other push from this checkout)
+# keeps working across fresh workspaces. Idempotent, non-fatal.
+wire_dotfiles_repo_credential() {
+  local cred="$REPO_DIR/config/dotfiles-repo-credential.sh"
+  [ -d "$REPO_DIR/.git" ] || return 0
+  # Already wired (a prior run added it) — don't append duplicate entries.
+  git -C "$REPO_DIR" config --get-all credential.helper 2>/dev/null | grep -qxF "$cred" && return 0
+  chmod +x "$cred" 2>/dev/null || true
+  git -C "$REPO_DIR" config --add credential.helper "" 2>/dev/null || true
+  git -C "$REPO_DIR" config --add credential.helper "$cred" 2>/dev/null || true
+}
+wire_dotfiles_repo_credential || echo "dotfiles repo credential wiring failed, continuing"
+
 echo "agent memory:"
 install_agent_memory || echo "agent memory setup failed, continuing"
 
