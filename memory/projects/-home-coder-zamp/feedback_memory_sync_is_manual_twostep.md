@@ -1,12 +1,22 @@
 ---
 name: feedback-memory-sync-is-manual-twostep
-description: Memory sync between HQ and seats is not automatic beyond first boot — requires explicit git pull + sync-memory.sh pull/push on both ends
+description: Memory sync between HQ and seats used to be manual (git pull + sync-memory.sh pull/push) — now automated via SessionStart/Stop hooks (memory-hooks.sh)
 metadata: 
   node_type: memory
   type: feedback
   originSessionId: 80ce98cd-34a3-40db-b753-81baaabc3418
-  modified: 2026-07-29T07:35:47.156Z
+  modified: 2026-07-29T08:11:24.895Z
 ---
+
+**UPDATE (2026-07-29): this gap is now closed by automation.** `~/.config/coderv2/dotfiles/memory-hooks.sh`
+is wired into every seat's (and HQ's) `~/.claude/settings.json` as `SessionStart` → `memory-hooks.sh pre`
+(dotfiles `git pull --ff-only` + `sync-memory.sh pull` + obsidian vault `git pull --ff-only`) and
+`Stop` → `memory-hooks.sh post` (`sync-memory.sh push`). Installed on HQ directly and rolled into
+`seatctl.py`'s `BOOTSTRAP` so every future `bootstrap`/`launch` gets it too. Both hooks always exit 0
+(no hard gate — a sync hiccup must never block a session). The manual procedure below is now the
+**fallback** for when you need a mid-session sync without waiting for the next SessionStart/Stop, not
+the normal path. See [[feedback_settings_json_symlink_dirty_tree]] for a real bug hit while wiring this
+up (a seat's dotfiles pull silently failing because its own `settings.json` write left the repo dirty).
 
 `sync-memory.sh pull` does NOT run `git pull` on the dotfiles repo itself — it only copies
 from that repo's *already-checked-out* local files. A long-running seat's dotfiles clone goes

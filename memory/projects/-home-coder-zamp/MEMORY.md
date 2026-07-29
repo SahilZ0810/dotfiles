@@ -3,4 +3,5 @@
 - [No committing superpowers specs](feedback_no_commit_superpowers_specs.md) — spec/plan docs from superpowers-style skills must never be committed, even alongside real code changes
 - [No Claude commit attribution](feedback_no_claude_commit_attribution.md) — when committing (only if explicitly asked), never add a Co-Authored-By/Claude-Session trailer
 - [Free a seat = reset + archive chat](feedback_seat_free_archive_chat.md) — seatctl reset alone is incomplete; archive mechanism still unresolved, ask user
-- [Memory sync is manual, two-step](feedback_memory_sync_is_manual_twostep.md) — seats need `git pull` dotfiles + `sync-memory.sh pull/push`; not automatic beyond first boot
+- [Memory sync is manual, two-step](feedback_memory_sync_is_manual_twostep.md) — UPDATED: now automated via memory-hooks.sh (SessionStart/Stop)
+- [settings.json symlink → dirty dotfiles tree](feedback_settings_json_symlink_dirty_tree.md) — any JSON write to ~/.claude/settings.json blocks the next dotfiles git pull unless reset first
