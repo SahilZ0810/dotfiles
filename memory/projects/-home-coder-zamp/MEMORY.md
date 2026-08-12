@@ -2,4 +2,3 @@
 - [Seat launch conventions](feedback_seat_launch_conventions.md) — honor explicit single-seat instructions literally; worker seats verifying a PR default to hot-reload dev mode
 - [No committing superpowers specs](feedback_no_commit_superpowers_specs.md) — spec/plan docs from superpowers-style skills must never be committed, even alongside real code changes
 - [No Claude commit attribution](feedback_no_claude_commit_attribution.md) — when committing (only if explicitly asked), never add a Co-Authored-By/Claude-Session trailer
-- [Coder seat /tmp is ephemeral](project_coder_seat_tmp_is_ephemeral.md) — /tmp is wiped on workspace restart; setsid-detach long jobs and keep results under $HOME
