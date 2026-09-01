@@ -25,7 +25,6 @@ workspace boot) and not owned by the Coder platform itself
     completion, plugin loading, and a dependency-free git-aware prompt (no
     oh-my-zsh, so a fresh workspace needs nothing installed).
   - `fastfetch-init.sh`, `fastfetch-config.jsonc` — login banner.
-  - `tmux-init.sh` — guarded tmux auto-attach (see below).
 - `config/tmux.conf` — symlinked to `~/.tmux.conf`.
 - `config/git/delta.gitconfig` — included into `~/.gitconfig` by `install.sh`.
 
@@ -43,7 +42,7 @@ each time.
 | `delta` | Git diff pager. Configured purely via gitconfig, so **zero shell-startup cost**. |
 | `bat` | `cat` with highlighting. |
 | `lazygit` | Git TUI; good for interactive rebase and hunk staging. |
-| `tmux` | Session survival (see below). |
+| `tmux` | Used by `zamp_dev_setup` agent-pool scripts (see below). No auto-attach. |
 | `jq` | JSON. |
 | `fastfetch` | Banner. linux-amd64 only upstream, so skipped elsewhere. |
 
@@ -60,20 +59,17 @@ effectively free), and `atuin` (fights fzf for `Ctrl-R` and hijacks
 
 ## tmux
 
-`shell/tmux-init.sh` auto-attaches to a `main` session, but **only for real
-interactive SSH logins**. That distinction matters: `coder ssh` has no
-reconnecting PTY, so a dropped connection kills whatever was in the
-foreground — including a long Claude Code run. Coder's *web* terminal already
-reconnects server-side and isn't SSH, so it's left alone.
+The binary and `config/tmux.conf` stay, because the `zamp_dev_setup` agent-pool
+scripts (`skills/_shared/start-seat.sh`, `seatctl.py`) start their own named
+sessions with it.
 
-It refuses to attach when: not in an SSH session, already inside tmux, no TTY,
-or any of `$CI`, `$CLAUDECODE`, `$INSIDE_EMACS`, `$VSCODE_SHELL_INTEGRATION`,
-`$ZED_TERM`, `TERM_PROGRAM=vscode`, `TERMINAL_EMULATOR=JetBrains-JediTerm`,
-`TERM=dumb` is set. Wrapping an IDE terminal or an agent session would range
-from irritating to breaking the workspace build.
-
-Note that tmux solves SSH disconnects, **not** workspace persistence — the
-tmux server is a process in the container and dies on workspace stop.
+There is **no login auto-attach** any more (`shell/tmux-init.sh` was removed,
+2026-09-02). It used to `exec tmux new-session -A -s main` on every SSH login.
+Orca opens each terminal over SSH with the worktree as `cwd` and injects
+`ORCA_*` env (including the remote `orca` CLI on `PATH`); attaching to one
+shared tmux session replaced both with the first pane's stale cwd and env, so
+agents started in the wrong checkout and could not find `orca`. Orca's relay
+handles reconnects itself, so nothing is lost by dropping the wrapper.
 
 ## zsh plugins
 

@@ -24,14 +24,11 @@ elif [ -n "${BASH_VERSION:-}" ]; then
   [ -f "$ZAMP_DOTFILES_DIR/shell/bash.sh" ] && . "$ZAMP_DOTFILES_DIR/shell/bash.sh"
 fi
 
-# Before the banner and the tmux exec below: repair the harvester if this is a seat
-# whose boot-time start was missed. Must come before tmux-init.sh, which execs.
+# Before the banner: repair the harvester if this is a seat whose boot-time start
+# was missed.
 [ -f "$ZAMP_DOTFILES_DIR/shell/harvester-init.sh" ] && . "$ZAMP_DOTFILES_DIR/shell/harvester-init.sh"
 
 # Banner last, so it prints below any output from the sourcing above.
+# No tmux auto-attach: Orca terminals must keep the cwd and ORCA_* env the relay
+# gives them (a shared tmux session dropped both), and Orca reconnects on its own.
 [ -f "$ZAMP_DOTFILES_DIR/shell/fastfetch-init.sh" ] && . "$ZAMP_DOTFILES_DIR/shell/fastfetch-init.sh"
-
-# Genuinely last: on a real SSH login this execs tmux and replaces the shell,
-# so nothing after it would run. Everything above is still applied, because the
-# shell tmux starts sources this file again from scratch.
-[ -f "$ZAMP_DOTFILES_DIR/shell/tmux-init.sh" ] && . "$ZAMP_DOTFILES_DIR/shell/tmux-init.sh"
