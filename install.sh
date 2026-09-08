@@ -299,6 +299,21 @@ install_cli_tools() {
 # workspace build, and a missing CLI tool must never do that.
 install_cli_tools || echo "cli tool setup failed, continuing"
 
+# omp (oh-my-pi) ships its own installer with bun-vs-binary detection per
+# platform, so it doesn't fit the pinned fetch_tool path above -- run it as-is.
+install_omp() {
+  if [ -x "$BIN_DIR/omp" ] || command -v omp >/dev/null 2>&1; then
+    echo "omp already installed"
+    return 0
+  fi
+
+  curl -fsSL --max-time 120 https://omp.sh/install | sh \
+    && echo "  installed omp" \
+    || echo "  could not install omp, skipping"
+}
+
+install_omp || echo "omp setup failed, continuing"
+
 # delta is configured entirely through gitconfig, which costs nothing at shell
 # startup. Wired as an include.path rather than by writing keys directly, so it
 # can never clobber or duplicate settings in your own ~/.gitconfig.
