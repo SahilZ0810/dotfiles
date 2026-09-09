@@ -25,6 +25,17 @@ pre() {
 
 post() {
   bash "$REPO_DIR/sync-memory.sh" push 2>&1 | sed 's/^/[memory-hooks] /'
+  if [ -d "$VAULT_DIR/.git" ]; then
+    git -C "$VAULT_DIR" add -A
+    if ! git -C "$VAULT_DIR" diff --cached --quiet 2>/dev/null; then
+      git -C "$VAULT_DIR" commit -m "auto: sync vault after Claude Code task" --quiet 2>/dev/null \
+        && git -C "$VAULT_DIR" push --quiet 2>/dev/null \
+        && log "obsidian vault pushed" \
+        || log "obsidian vault push failed (non-fatal)"
+    else
+      log "obsidian vault: no changes"
+    fi
+  fi
   exit 0
 }
 
