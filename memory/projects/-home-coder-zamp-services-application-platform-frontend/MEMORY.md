@@ -1,0 +1,1 @@
+- [Reuse before building](reuse-before-building.md) — audit codebase + installed deps for existing coverage before writing any new utility
