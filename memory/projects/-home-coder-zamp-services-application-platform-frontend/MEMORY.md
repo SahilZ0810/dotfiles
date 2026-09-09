@@ -1,2 +1,3 @@
 - [Reuse before building](reuse-before-building.md) — audit codebase + installed deps for existing coverage before writing any new utility
 - [Orca browser: use the session's worktree](orca-browser-use-session-worktree.md) — tabs must open where the chat runs, not the Mac local worktree
+- [Browser QA needs the Coder proxy + session cookie](browser-qa-coder-proxy-auth.md) — localhost:3000 fails CORS on login; chromium system deps must be installed once.
