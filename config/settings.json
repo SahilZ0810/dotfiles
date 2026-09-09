@@ -26,7 +26,9 @@
   },
   "enabledPlugins": {
     "mattpocock-skills@mattpocock": true,
-    "superpowers@claude-plugins-official": true
+    "superpowers@claude-plugins-official": true,
+    "superpowers@superpowers-marketplace": true,
+    "obsidian@obsidian-skills": true
   },
   "extraKnownMarketplaces": {
     "mattpocock": {
@@ -34,9 +36,23 @@
         "source": "github",
         "repo": "mattpocock/skills"
       }
+    },
+    "superpowers-marketplace": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/obra/superpowers-marketplace.git"
+      }
+    },
+    "obsidian-skills": {
+      "source": {
+        "source": "github",
+        "repo": "kepano/obsidian-skills"
+      }
     }
   },
   "autoUpdatesChannel": "latest",
   "skipDangerousModePermissionPrompt": true,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "outputStyle": "ELI5",
+  "advisorModel": "fable"
 }

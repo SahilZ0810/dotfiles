@@ -187,6 +187,18 @@ if [ -n "$(ls -A "$REPO_DIR/config/commands" 2>/dev/null | grep -v .gitkeep)" ];
   link "$REPO_DIR/config/commands" "$CLAUDE_DIR/commands"
 fi
 
+# Link each skill dir individually, never the whole ~/.claude/skills directory --
+# that would replace unrelated skills already there (aside-browser, computer-use,
+# claude.ai-synced skills) instead of adding to them.
+if [ -d "$REPO_DIR/config/skills" ]; then
+  mkdir -p "$CLAUDE_DIR/skills"
+  for skill_dir in "$REPO_DIR"/config/skills/*/; do
+    [ -d "$skill_dir" ] || continue
+    skill_name="$(basename "$skill_dir")"
+    link "$REPO_DIR/config/skills/$skill_name" "$CLAUDE_DIR/skills/$skill_name"
+  done
+fi
+
 # ~/.tmux.conf rather than ~/.config/tmux/tmux.conf: the legacy path is honoured
 # by every tmux version, including whatever an older base image ships.
 link "$REPO_DIR/config/tmux.conf" "$HOME/.tmux.conf"
