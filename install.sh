@@ -541,5 +541,18 @@ wire_adhd_always_on() {
 }
 wire_adhd_always_on || echo "adhd always-on wiring failed, continuing"
 
+# omp: apply the shared OpenAI-only model role map plus a couple of defaults.
+# Uses `omp config set` rather than writing config.yml, so every other key the
+# user or omp itself already set is preserved. Idempotent, non-fatal.
+wire_omp_config() {
+  command -v omp >/dev/null 2>&1 || return 0
+  local roles="$REPO_DIR/config/omp-modelroles.json"
+  [ -f "$roles" ] || return 0
+  omp config set modelRoles "$(cat "$roles")" >/dev/null 2>&1 || return 0
+  omp config set defaultThinkingLevel high >/dev/null 2>&1 || true
+  omp config set memory.backend local >/dev/null 2>&1 || true
+}
+wire_omp_config || echo "omp config wiring failed, continuing"
+
 echo
 echo "Done."
