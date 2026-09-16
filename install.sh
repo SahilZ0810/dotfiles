@@ -525,5 +525,21 @@ if [ -x "$REPO_DIR/sync-memory.sh" ]; then
   "$REPO_DIR/sync-memory.sh" pull || echo "memory pull failed, continuing"
 fi
 
+# i-have-adhd: turn on the Claude Code always-on SessionStart hook (the plugin
+# reads this flag), and append the same ruleset to Codex's global AGENTS.md
+# since Codex has no equivalent start hook. Both idempotent, non-fatal.
+wire_adhd_always_on() {
+  mkdir -p "$CLAUDE_DIR" 2>/dev/null || true
+  [ -f "$CLAUDE_DIR/.i-have-adhd-always" ] || : > "$CLAUDE_DIR/.i-have-adhd-always"
+
+  local block="$REPO_DIR/config/codex-adhd-block.md"
+  [ -f "$block" ] || return 0
+  mkdir -p "$HOME/.codex" 2>/dev/null || true
+  touch "$HOME/.codex/AGENTS.md" 2>/dev/null || return 0
+  grep -q "i-have-adhd" "$HOME/.codex/AGENTS.md" && return 0
+  cat "$block" >> "$HOME/.codex/AGENTS.md"
+}
+wire_adhd_always_on || echo "adhd always-on wiring failed, continuing"
+
 echo
 echo "Done."
