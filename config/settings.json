@@ -2,7 +2,7 @@
   "permissions": {
     "defaultMode": "auto"
   },
-  "model": "opus[1m]",
+  "model": "claude-opus-4-8",
   "hooks": {
     "SessionStart": [
       {
@@ -155,6 +155,17 @@
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -z \"${HOME-}\" ]; then case \"${OSTYPE-}\" in msys*|cygwin*|win32*) printf '{}\\n'; if [ -z \"${ORCA_AGENT_HOOK_PORT-}\" ] || [ -z \"${ORCA_AGENT_HOOK_TOKEN-}\" ] || [ -z \"${ORCA_PANE_KEY-}\" ]; then exit 0; fi; { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || : ;; *) { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; printf '{}\\n' ;; esac; else case \"${OSTYPE-}\" in msys*|cygwin*|win32*) if [ -f \"${HOME-}/.orca/agent-hooks/claude-hook.cmd\" ]; then case \"${HOME-}\" in *\\&*|*\\^*|*\\(*|*\\)*|*\\;*|*,*|*=*|*%*|*\\!*) if [ -f \"${SYSTEMROOT-}/System32/WindowsPowerShell/v1.0/powershell.exe\" ]; then \"${SYSTEMROOT-}/System32/WindowsPowerShell/v1.0/powershell.exe\" -NoProfile -EncodedCommand JABQAHIAbwBnAHIAZQBzAHMAUAByAGUAZgBlAHIAZQBuAGMAZQA9ACcAUwBpAGwAZQBuAHQAbAB5AEMAbwBuAHQAaQBuAHUAZQAnADsAIAB0AHIAeQAgAHsAIABTAGUAdAAtAEUAeABlAGMAdQB0AGkAbwBuAFAAbwBsAGkAYwB5ACAALQBTAGMAbwBwAGUAIABQAHIAbwBjAGUAcwBzACAALQBFAHgAZQBjAHUAdABpAG8AbgBQAG8AbABpAGMAeQAgAEIAeQBwAGEAcwBzACAALQBGAG8AcgBjAGUAIAAtAEUAcgByAG8AcgBBAGMAdABpAG8AbgAgAFMAaQBsAGUAbgB0AGwAeQBDAG8AbgB0AGkAbgB1AGUAIAB9ACAAYwBhAHQAYwBoACAAewB9ADsAIAAkAGgAbwBtAGUAUABhAHQAaAAgAD0AIAAkAGUAbgB2ADoASABPAE0ARQAgAC0AcgBlAHAAbABhAGMAZQAgACcAXgAvACgAWwBBAC0AWgBhAC0AegBdACkALwAnACwAIAAnACQAMQA6AC8AJwA7ACAAJABzAGMAcgBpAHAAdABQAGEAdABoACAAPQAgAEoAbwBpAG4ALQBQAGEAdABoACAAJABoAG8AbQBlAFAAYQB0AGgAIAAnAC4AbwByAGMAYQBcAGEAZwBlAG4AdAAtAGgAbwBvAGsAcwBcAGMAbABhAHUAZABlAC0AaABvAG8AawAuAGMAbQBkACcAOwAgAGkAZgAgACgAVABlAHMAdAAtAFAAYQB0AGgAIAAtAEwAaQB0AGUAcgBhAGwAUABhAHQAaAAgACQAcwBjAHIAaQBwAHQAUABhAHQAaAAgAC0AUABhAHQAaABUAHkAcABlACAATABlAGEAZgApACAAewAgACYAIAAkAHMAYwByAGkAcAB0AFAAYQB0AGgAOwAgAGUAeABpAHQAIAAkAEwAQQBTAFQARQBYAEkAVABDAE8ARABFACAAfQA7ACAAVwByAGkAdABlAC0ATwB1AHQAcAB1AHQAIAAnAHsAfQAnADsAIABpAGYAIAAoAC0AbgBvAHQAIAAkAGUAbgB2ADoATwBSAEMAQQBfAEEARwBFAE4AVABfAEgATwBPAEsAXwBQAE8AUgBUACAALQBvAHIAIAAtAG4AbwB0ACAAJABlAG4AdgA6AE8AUgBDAEEAXwBBAEcARQBOAFQAXwBIAE8ATwBLAF8AVABPAEsARQBOACAALQBvAHIAIAAtAG4AbwB0ACAAJABlAG4AdgA6AE8AUgBDAEEAXwBQAEEATgBFAF8ASwBFAFkAKQAgAHsAIABlAHgAaQB0ACAAMAAgAH0AOwAgAFsAQwBvAG4AcwBvAGwAZQBdADoAOgBJAG4ALgBSAGUAYQBkAFQAbwBFAG4AZAAoACkAIAB8ACAATwB1AHQALQBOAHUAbABsADsAIABlAHgAaQB0ACAAMAA=; else printf '{}\\n'; if [ -z \"${ORCA_AGENT_HOOK_PORT-}\" ] || [ -z \"${ORCA_AGENT_HOOK_TOKEN-}\" ] || [ -z \"${ORCA_PANE_KEY-}\" ]; then exit 0; fi; { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi ;; *) \"${HOME-}/.orca/agent-hooks/claude-hook.cmd\" ;; esac; else printf '{}\\n'; if [ -z \"${ORCA_AGENT_HOOK_PORT-}\" ] || [ -z \"${ORCA_AGENT_HOOK_TOKEN-}\" ] || [ -z \"${ORCA_PANE_KEY-}\" ]; then exit 0; fi; { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi ;; *) if [ -f \"${HOME-}/.orca/agent-hooks/claude-hook.sh\" ] && [ -r \"${HOME-}/.orca/agent-hooks/claude-hook.sh\" ] && [ -x \"${HOME-}/.orca/agent-hooks/claude-hook.sh\" ]; then /bin/sh \"${HOME-}/.orca/agent-hooks/claude-hook.sh\"; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; printf '{}\\n'; fi ;; esac; fi",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   },
   "enabledPlugins": {
@@ -162,7 +173,8 @@
     "superpowers@claude-plugins-official": true,
     "superpowers@superpowers-marketplace": true,
     "obsidian@obsidian-skills": true,
-    "i-have-adhd@i-have-adhd": true
+    "i-have-adhd@i-have-adhd": true,
+    "typesafe@typesafe-ai": true
   },
   "extraKnownMarketplaces": {
     "mattpocock": {
@@ -188,6 +200,12 @@
         "source": "github",
         "repo": "ayghri/i-have-adhd"
       }
+    },
+    "typesafe-ai": {
+      "source": {
+        "source": "github",
+        "repo": "typesafe-ai/skills"
+      }
     }
   },
   "outputStyle": "ELI5",
@@ -197,9 +215,54 @@
     }
   },
   "advisorModel": "opus",
+  "pluginConfigs": {
+    "jev-model-router@skills-dir": {
+      "options": {
+        "typesafeApiKey": "apikey_2549f1d5ce3934e48849861f99169108eba_2e8b6074406094190ce447605158d623325e42cdb947c1d1d752a52b01ee4038",
+        "timeoutMs": 1500,
+        "logDecisions": true,
+        "routeMainModel": true
+      }
+    }
+  },
   "autoUpdatesChannel": "latest",
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
+  "editorMode": "normal",
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "autoMode": {
+    "soft_deny": [
+      "$defaults",
+      "Bash(git push:origin main)",
+      "Bash(terraform apply:*) in cloud/infra/terraform/relay-*.tf"
+    ],
+    "environment": [
+      "### Org-wide",
+      "**Organization**: None configured",
+      "**Cloud provider(s)**: Google Cloud (gcloud secrets manager referenced; GCE/relay Terraform under cloud/infra/terraform)",
+      "**Repository visibility**: PUBLIC — stablyai/orca (origin) is a public GitHub repository; any push there is publishing",
+      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Secrets management**: gcloud secrets (Secrets-manager markers); CI secrets referenced by name only (e.g. APPLE_APP_SPECIFIC_PASSWORD, ASC_API_KEY_P8, VERCEL_TOKEN, BUFO_BOT_PRIVATE_KEY, GITHUB_TOKEN) — values not queryable, treat as credentials never to print or exfiltrate",
+      "**Default / protected branches**: main (default branch); Protected branches not queryable here and Rulesets: none listed via gh — do not assume main is unprotected",
+      "**CI/CD deploy targets**: Vercel (VERCEL_ORG_ID/VERCEL_PROJECT_ID/VERCEL_TOKEN in CI), Apple App Store / notarization (ASC_*, APPLE_* secrets), GCE-based relay infrastructure (cloud/infra/terraform/relay-*.tf)",
+      "**Network posture**: None configured",
+      "**Host containment**: None configured — assume Claude Code runs on an ordinary developer machine or CI runner with open internet",
+      "**Source control**: This repo (orca) and its two remotes only — origin (stablyai/orca, public) and fork (SahilZ0810/orca, personal fork) — no additional orgs configured",
+      "**Trusted internal domains**: None configured",
+      "**Trusted cloud buckets**: None configured",
+      "**Key internal services**: None configured",
+      "**Internal package registry**: None configured",
+      "**Sensitive data locations & audiences**: CI secret names (APPLE_*, ASC_*, IOS_DIST_CERT_*, MAC_CERTS*, VERCEL_TOKEN, BUFO_BOT_PRIVATE_KEY, GITHUB_TOKEN, HOURLY_RELEASE_APP_PRIVATE_KEY) — credentials, never to be printed, committed, or exfiltrated; .env/.env.local/.env.*.local per .gitignore; mobile/src/transport credential-handling modules (host-credential-*, mobile-relay-credential-*) — treat as sensitive code paths; share only with audiences cleared at the [named+specifics] bar",
+      "**Data retention / declassification**: None configured",
+      "**Sensitive remote targets**: cloud/infra/terraform/relay-staging-deploy-iam.tf and any namespace/host/container whose name carries prod or production as a whole word or segment; relay-asia-* IAM/topology resources warrant caution as production-adjacent infra",
+      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "**Protected IaC scopes**: cloud/infra/terraform/* (relay-asia-proof-iam.tf, relay-asia-topology-iam.tf, relay-github-actions.tf, relay-github-workflow-trust.tf, relay-staging-deploy-iam.tf, relay-database.tf, relay-dns.tf, relay-fence-broker.tf, relay-gce-*.tf) — IAM, networking, and deploy-trust resources in this repo; anything whose name or tag carries prod or production as a whole word or segment",
+      "### User-specific",
+      "**Primary use of Claude Code**: software development (Orca — AI orchestrator desktop app)",
+      "**Trusted repo**: /Users/lscypher/Workspace/orca (working directory) and its remotes — origin (stablyai/orca, public) and fork (SahilZ0810/orca); since origin is public, only this repo's own work belongs there — content ported from elsewhere is not cleared for push; secrets and sensitive data are never cleared into either remote regardless of visibility",
+      "**Org-specific CLIs**: None configured — 'orca' itself appears in shell history (3×) as the project's own CLI/binary; coder, mole/mo, evlog, hunk, witr, herdr, prime-agent, boxd, claide, code-review-graph, fx appear in shell history but are unverified personal tooling, not corroborated as org-specific",
+      "**routine under this repo's prefix**: routine git/build/test/lint operations under /Users/lscypher/Workspace/orca/ (git, npm, npx, node, gh against stablyai/orca or SahilZ0810/orca)"
+    ]
+  }
 }
