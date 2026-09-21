@@ -148,8 +148,10 @@ Mitigation — treat as mandatory for any seat browser work:
 4. Spawn the agent in the FE checkout (fresh ticket → new branch from `origin/release`; existing PR
    → check out its branch and `reset --hard` to origin, never `-B` from release, which would blow
    the PR away; DIRTY seat → `git stash -u` first). See `orca-ticket` for the exact branch rules.
+   **Always start with `/i-have-adhd:i-have-adhd` skill first** — it shapes the output into short,
+   clear, actionable steps.
    ```bash
-   orca terminal create --worktree "<FE>" --title "<task>" --command "claude '<brief>'" --json
+   orca terminal create --worktree "<FE>" --title "<task>" --command "claude '/i-have-adhd:i-have-adhd then <brief>'" --json
    ```
 5. The seat may be a stopped Coder workspace; `terminal create` auto-starts it (can take ~30-60s).
    Confirm with `orca terminal read`; if the handle later returns `terminal_handle_stale` (Orca
