@@ -148,11 +148,17 @@ Mitigation — treat as mandatory for any seat browser work:
 4. Spawn the agent in the FE checkout (fresh ticket → new branch from `origin/release`; existing PR
    → check out its branch and `reset --hard` to origin, never `-B` from release, which would blow
    the PR away; DIRTY seat → `git stash -u` first). See `orca-ticket` for the exact branch rules.
-   **Always start with `/i-have-adhd:i-have-adhd` skill first** — it shapes the output into short,
-   clear, actionable steps.
    ```bash
-   orca terminal create --worktree "<FE>" --title "<task>" --command "claude '/i-have-adhd:i-have-adhd then <brief>'" --json
+   orca terminal create --worktree "<FE>" --title "<task>" --command "claude '<brief>'" --json
    ```
+   Do **not** prefix the brief with `/i-have-adhd:i-have-adhd` or any other local slash-command —
+   seat checkouts run their own Claude Code install without the user's personal skills, so an
+   unrecognized `/skill:name` is swallowed as "Unknown command" and the whole rest of the brief
+   goes with it as garbage args, silently wasting the launch. (Discovered live: a PRO-3411 spawn
+   sent `'/i-have-adhd:i-have-adhd then <brief>'` and the terminal came back idle with
+   `Unknown command: /i-have-adhd:i-have-adhd` — the agent never started on the actual task until
+   the brief was resent plain.) If the user wants ADHD-style short/actionable output, ask them
+   whether the seat needs its own skills setup rather than assuming the prefix works everywhere.
 5. The seat may be a stopped Coder workspace; `terminal create` auto-starts it (can take ~30-60s).
    Confirm with `orca terminal read`; if the handle later returns `terminal_handle_stale` (Orca
    reconnected and dropped the agent, leaving a bare shell), re-list terminals, take the new handle,
