@@ -155,6 +155,14 @@ Mitigation — treat as mandatory for any seat browser work:
    Confirm with `orca terminal read`; if the handle later returns `terminal_handle_stale` (Orca
    reconnected and dropped the agent, leaving a bare shell), re-list terminals, take the new handle,
    and relaunch the agent in that shell with `orca terminal send` rather than opening a new tab.
+6. **Always read the terminal after launch — don't assume it started.** A checkout that hasn't run
+   Claude before shows a one-time "trust this folder?" prompt, with **"No, exit" pre-highlighted**.
+   A bare `--enter` there confirms "No" and drops straight back to a shell — the agent never starts,
+   silently. If the tail shows this prompt: send `$(printf '\x1b[B')` (down arrow, moves the
+   selection to "Yes, I trust this folder") as its own `terminal send`, confirm with a read that the
+   selection moved, then send `$(printf '\r')` to confirm — then relaunch the `claude '<brief>'`
+   command. Do this as three separate sends with a read in between each; sending them all at once
+   can race the prompt render.
 
 ## Freeing a seat
 
