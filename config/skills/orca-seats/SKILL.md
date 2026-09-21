@@ -202,6 +202,36 @@ not that procedure.
 Then re-run Rule 1 to confirm the seat reads FREE — or OFFLINE/reconnecting if `coder stop` is still
 settling, which is expected, not a failure.
 
+> **Order is not optional — retire terminals (step 4) BEFORE `coder stop` (step 5), and never
+> `coder stop` on its own.** `coder stop` kills the seat's processes but leaves Orca's terminal
+> *surfaces* and *agent-resume records* intact. Orca's background SSH dialer restarts a registered
+> seat by itself (not only when you run a CLI command), and on restart it reattaches those surfaces
+> — the agent comes back to life on a fresh process. The incident that added this note: on a "close
+> all the seats" request the processes were `coder stop`ped with no prior `terminal close --all`;
+> every seat bounced back to "Started" within a minute with its agent **live again**. So treat
+> closing a seat as "retire the Orca surfaces", not "stop the box". `terminal close --all` is the
+> durable stop; `coder stop` only settles the power state, which the dialer may undo anyway.
+
+## Closing seats in bulk (shutdown, e.g. "close all the seats")
+
+A bulk shutdown is the free procedure applied to every seat, in this order — not a shortcut to
+`coder stop`:
+
+1. Rule 1 map — see which seats have live checkouts and which tasks are foreign (not yours to kill);
+   confirm with the user before killing work they did not ask you to start.
+2. For every checkout with a live terminal, verify the work is saved (free step 1), then
+   **`orca terminal close --worktree <sel> --all --json`** — this is what actually stops the agents
+   and retires their resume records so a restart comes up empty. Do all of these before any
+   `coder stop`. `terminal_stop_unverifiable` here is expected when a host is mid-reconnect; do not
+   loop on it — re-run the close once the host is settled, or let the coder stop and idle-TTL carry
+   it. A seat is durably closed once its surfaces are retired, even if it later powers back to idle.
+3. `coder stop sahil-seat-N` each seat. Verify with `coder list`, never with `orca ...` (an `orca`
+   call re-wakes the dialer and restarts the seat you just stopped).
+4. Expect seats to still power back to **idle** while the Orca app runs — that is fine once
+   terminals are retired; they come up empty, no agents. To keep them powered off, the user quits
+   Orca (stops the dialer) or you deregister the hosts.
+5. Agent-session ("chat") cards remain in the sidebar for the user to archive in the app.
+
 ## Common failure modes
 
 - **`live=0` read as "free".** The double-booking this skill prevents. Trust the classifier's
@@ -218,3 +248,7 @@ settling, which is expected, not a failure.
   claim the agent stopped and do not retry on another host; `coder stop` cleans up the orphan.
 - **A stopped seat immediately shows "Starting" again.** Orca's SSH dial re-wakes a registered host,
   and your own verify calls trigger it. Expected — the task is still freed; do not loop on it.
+- **Stopped seats come back with their agents running again.** You ran `coder stop` without a prior
+  `terminal close --worktree <sel> --all`. `coder stop` kills processes but not Orca's terminal
+  surfaces/resume records; the dialer restarts the seat and reattaches the agent. Retire the
+  terminals first — that is the durable stop; `coder stop` alone is not.
