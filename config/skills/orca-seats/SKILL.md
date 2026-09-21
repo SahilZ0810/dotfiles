@@ -176,11 +176,13 @@ not that procedure.
    (must be empty). If anything is uncommitted or unpushed, STOP and ask the user — do not free. A
    pushed branch or an open PR for the branch is proof enough (`gh pr list --head <branch>`).
 
-2. **Put every service checkout back on its base branch**, not just the one the task used. A seat is
-   FREE only when all its service checkouts are on base: FE on `release`, pantheon on `main`.
-   Leaving pantheon (or FE) on a non-base branch makes the seat read DIRTY indefinitely — the same
-   miss that leaves "free" seats looking unclean. Run in each: `git checkout release` /
-   `git checkout main`.
+2. **Put every service checkout back on its base branch**, not just the one the task used. In this
+   fleet **both** services rest on `release` — FE and pantheon PRs alike target `release`, and this
+   is what the user means by **"reset a seat" / "clean a seat": `git checkout release` on every
+   service checkout (FE and pantheon).** A seat is FREE only when all its service checkouts are on
+   `release`; a checkout left on a feature branch (or pantheon on `main`) makes the seat read DIRTY.
+   Run in each: `git checkout release`. (An older orca-ticket note says "BE from main" — that is
+   stale for the resting state; go by the live PR `baseRefName`, which is `release`.)
 
 3. **Clear the card state** on each checkout so the next Rule 1 sees it FREE:
    `orca worktree set --worktree "<sel>" --comment free --linear-issue null --json`. Until the link

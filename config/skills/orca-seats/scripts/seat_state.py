@@ -29,9 +29,14 @@ State meanings:
 import argparse, json, subprocess, sys
 
 # repo name -> its base branch. A checkout sitting on any other branch is "dirty".
+# In this fleet BOTH services rest on `release`: FE PRs and pantheon (BE) PRs alike target
+# release (confirmed by PR baseRefName), and a freed seat's checkouts are left on release.
+# "Reset a seat" therefore means `git checkout release` on every service checkout — do not
+# send pantheon to main (an older orca-ticket note said "BE from main"; that is stale for the
+# resting state and makes a correctly-reset pantheon read DIRTY).
 BASE_BRANCH = {
     "application-platform-frontend": "release",
-    "pantheon": "main",
+    "pantheon": "release",
 }
 # The seat is "checked out" only if it carries at least one real service repo.
 SERVICE_REPOS = set(BASE_BRANCH)
