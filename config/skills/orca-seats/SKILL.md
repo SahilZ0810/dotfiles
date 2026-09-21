@@ -225,12 +225,20 @@ A bulk shutdown is the free procedure applied to every seat, in this order — n
    `coder stop`. `terminal_stop_unverifiable` here is expected when a host is mid-reconnect; do not
    loop on it — re-run the close once the host is settled, or let the coder stop and idle-TTL carry
    it. A seat is durably closed once its surfaces are retired, even if it later powers back to idle.
-3. `coder stop sahil-seat-N` each seat. Verify with `coder list`, never with `orca ...` (an `orca`
+3. **Clear the card labels on every carded checkout — not just the ones that had a terminal.** The
+   display-name, comment, and linked issue/PR persist independently of terminals and `coder stop`,
+   so a closed seat keeps showing its old task name in the sidebar until you reset the card. Find
+   them with `orca worktree ps --json` (any checkout whose `displayName` != repo, or `comment` is
+   not empty/`free`, or has `linkedLinearIssue`/`linkedPR`), then for each:
+   `orca worktree set --worktree <sel> --display-name <repo> --comment free --linear-issue null --json`.
+   Do this across all three checkouts (zamp root, FE, pantheon) of every seat — the label the user
+   sees is often on the `zamp` root, not the FE checkout.
+4. `coder stop sahil-seat-N` each seat. Verify with `coder list`, never with `orca ...` (an `orca`
    call re-wakes the dialer and restarts the seat you just stopped).
-4. Expect seats to still power back to **idle** while the Orca app runs — that is fine once
-   terminals are retired; they come up empty, no agents. To keep them powered off, the user quits
-   Orca (stops the dialer) or you deregister the hosts.
-5. Agent-session ("chat") cards remain in the sidebar for the user to archive in the app.
+5. Expect seats to still power back to **idle** while the Orca app runs — that is fine once
+   terminals are retired and cards cleared; they come up empty, no agents, no task name. To keep
+   them powered off, the user quits Orca (stops the dialer) or you deregister the hosts.
+6. Agent-session ("chat") cards remain in the sidebar for the user to archive in the app.
 
 ## Common failure modes
 
