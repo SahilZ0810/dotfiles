@@ -1,2 +1,3 @@
 - [pgbot DB optimization status](pgbot-db-optimization-status.md) — branch pushed, what's applied vs pending, Notion TRD links
 - [Zamp prod DB access facts](zamp-prod-db-access-facts.md) — RDS proxy traps, Grafana-via-Orca, per-node stats
+- [No tests for comment-only changes](no-tests-for-comment-only-changes.md) — skip pytest when a diff only touches comments/docstrings
