@@ -1,2 +1,3 @@
 - [pgbot DB optimization status](pgbot-db-optimization-status.md) — branch pushed, what's applied vs pending, Notion TRD links
 - [Zamp prod DB access facts](zamp-prod-db-access-facts.md) — RDS proxy traps, Grafana-via-Orca, per-node stats
+- [PRO-3417: no regroup from chat](pro3417-no-chat-regroup.md) — merge/split/rename/move groups via chat is intentionally not a feature
