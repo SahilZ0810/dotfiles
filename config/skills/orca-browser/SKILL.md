@@ -117,6 +117,52 @@ is in `orca-cli`'s bundled browser reference
 (`orca skills get orca-cli --reference references/browser.md`) — load it if a command isn't
 covered here.
 
+## Taking screenshots
+
+`orca screenshot` captures the visible viewport of the tab and returns it as base64 inside the
+JSON result (`result.data`, with `result.format`). It does not write a file, so decode it
+yourself. Save captures in the session scratchpad, never in the repo:
+
+```bash
+OUT="<session scratchpad>/shots"; mkdir -p "$OUT"   # the scratchpad dir from the system prompt
+shot() {
+  orca screenshot --worktree "$SEAT" --json 2>/dev/null | python3 -c "
+import json, sys, base64
+d = json.load(sys.stdin)['result']
+open(sys.argv[1], 'wb').write(base64.b64decode(d['data'].split(',')[-1]))" "$OUT/$1.png"
+}
+shot 1-default-view
+```
+
+Get the page into the state you want before each shot:
+
+- **Set up state with `orca eval`.** Clicking, expanding, and switching views through
+  `orca eval --expression '<js>'` is more reliable than `orca click` refs, which sometimes miss
+  and leave the page unchanged. Read the result back with another `eval` (the URL, a selected
+  element) before shooting.
+- **Radix tabs, menus and toggles ignore a bare `.click()`.** They open on pointer events, so
+  dispatch them first:
+  `el.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, button: 0, pointerType: 'mouse'}));`
+  then `mousedown`, then `el.click()`. React's `onPointerEnter` listens for `pointerover`, so a
+  synthetic `pointerenter` does nothing. Dispatch a bubbling `pointerover` to test hover.
+- **Scroll the subject into view** with `el.scrollIntoView({block: 'center'})`. Only the visible
+  viewport is captured. Use `full-screenshot` for the whole page.
+- **Wait longer than you think.** The embedded tab throttles `requestAnimationFrame` to about once
+  a second, so fades, springs and editors such as Monaco can take several seconds to settle. A
+  shot taken too early shows blank or half-faded content. Sleep 5 to 15 seconds after a view
+  change.
+- **Look at every capture before you use it** by reading the PNG. Retake any that caught a
+  loading or fading state.
+- **The tab uses the user's own session**, so it is already logged in to whichever org they
+  picked. Do not sign in a test account in it.
+
+To put captures in a PR, reference each one in the body as `![Caption](./name.png)` and run
+`gh pr edit <n> --body-file body.md --attach ./name.png …` from the capture directory. That needs
+gh 2.99 or newer. gh uploads each file and rewrites the path to a
+`github.com/user-attachments` URL. Read the body back to confirm every path was rewritten. If
+`GITHUB_TOKEN` is an app token or has expired, prefix the command with `env -u GITHUB_TOKEN` to
+use the saved `gh` login.
+
 ## Common recoveries
 
 - **User says they can't see the tab, but every check says it's fine** — it is on a worktree
