@@ -119,6 +119,39 @@ The seat name is `zamp-N`; its coder workspace is `sahil-seat-N` (the shared num
 4. **Re-sweep** to confirm the seat now reads OK (or SETTLING if coder is still bringing it up, which
    is fine — the next tick will confirm).
 
+## Keep servers up on working seats (every sweep)
+
+Recovery above handles a seat that is powered **down**. But a seat can stay powered **up** (coder
+`running`, verdict OK or TRANSIENT) while its `zamp dev` servers have died on their own — a crash, an
+OOM, or a blip that killed the processes without stopping the box. The user wants the preview to stay
+alive, so **every sweep also makes sure the dev servers are running on each seat that carries work** —
+starting only the ones that are actually down. Never kill + restart a server that is already live;
+that churns a working preview for nothing.
+
+For each seat whose box is `running` (OK or TRANSIENT) **and** carries work:
+
+1. **Check server liveness over ssh** (ssh works even when orca reachability is a TRANSIENT blip):
+   ```bash
+   ssh <seat>.coder 'echo FE=$(pgrep -fc "next dev|next-server|turbo"); echo BE=$(pgrep -fc "temporal-server|pantheon|uvicorn")'
+   ```
+   `FE=0` means the frontend dev server is down; `BE=0` means pantheon is down. (Adjust the patterns
+   if the stack changes; the `zamp dev` wrapper itself may exit after launching its children, so match
+   the child servers, not `zamp dev`.) If ssh itself fails (a real TRANSIENT blip), skip the seat this
+   tick and let the next sweep retry — do not start servers blind.
+2. **Start only what the task needs AND is actually down.** A seat whose only working checkout is FE
+   needs `2`; a seat whose pantheon checkout also carries work needs `1` too. Skip any service already
+   alive. If both are up, do nothing.
+3. **Start the missing server(s) in a managed Orca terminal, from the `~/zamp` root:**
+   ```bash
+   orca terminal create --worktree "<FE selector for this seat>" --title "zamp dev (restarted)" \
+     --command "cd ~/zamp && zamp dev <missing>" --json
+   ```
+   `<missing>` is `1`, `2`, or `1 2` — only the down ones.
+
+This is idempotent, so it is safe on every loop tick. A powered-**down** seat is already handled by
+RECOVER (which starts servers as part of waking it) — don't double-handle; run this server check only
+on seats that are already `running`.
+
 ## Running it as a loop
 
 Spot drops happen whenever, so a single sweep only catches what is down right now. Run it on a
@@ -128,12 +161,15 @@ Spot drops happen whenever, so a single sweep only catches what is down right no
 /loop 3m /orca-seat-watchdog
 ```
 
-Each tick is exactly "one sweep" above, then recover any RECOVER seats. Cadence guidance:
+Each tick is exactly "one sweep" above, then recover any RECOVER seats, then run the server-health
+check on each `running` seat that carries work. Cadence guidance:
 
 - **3–5 minutes** is a good default — long enough not to thrash, short enough that a reclaimed
   working seat is usually back within a few minutes.
-- A tick where every seat is OK/DOWN_IDLE is a **noop** — nothing changed, report it as a quiet hold,
-  don't narrate five "still fine" lines.
+- A tick where every seat is OK/DOWN_IDLE **and every working seat already has its servers up** is a
+  **noop** — nothing changed, report it as a quiet hold, don't narrate five "still fine" lines.
+- A tick that restarted a dead dev server (box was up, server had crashed) is worth surfacing: say
+  which seat and which service came back.
 - A tick that actually woke a seat is worth surfacing: say which seat dropped and that it's back.
 - **Stop the loop** when the user says so, or when no seat carries work any more (all FREE/idle — then
   there is nothing to keep alive; offer to stop rather than looping over an idle fleet).
@@ -160,6 +196,11 @@ sweep is three sandbox-off CLI calls plus any recovery.
 - **coder shows the seat bouncing `stopped`→`starting` on its own.** Orca's dialer re-wakes registered
   hosts; also expected right after `coder start`. Treat `starting` as SETTLING and let the next tick
   settle it — don't hammer `coder start` in a loop.
+- **A working seat's preview was down but the box was up.** The power cross-check alone misses this —
+  the box is `running` so it is never RECOVER, yet `zamp dev` had crashed. The per-sweep server-health
+  check catches it: it pgreps the child servers over ssh and starts only the down ones. If you ever see
+  it restart a server that was actually alive, the pgrep pattern is matching the wrong process — fix
+  the pattern, don't widen it to always-restart.
 
 ## Relationship to orca-seats
 
