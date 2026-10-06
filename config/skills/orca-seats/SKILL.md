@@ -71,8 +71,14 @@ SEAT     STATE     WHY
 zamp-2   DIRTY     pantheon on release (base main)
 zamp-1   OCCUPIED  application-platform-frontend: linked PRO-2629; zamp: comment 'FE #3144 ...'; ...
 ...
-Assign to: zamp-2  FE=id:27bd04bb-...::/home/coder/zamp/services/application-platform-frontend
+Assign to: zamp-2  ZAMP=id:4ac054f8-...::/home/coder/zamp
 ```
+
+The `ZAMP=` selector is the seat's **`/home/coder/zamp` root worktree — the one and only place this
+skill assigns work** (see the assignment workflow). The classifier still *detects* state across all
+three checkouts (zamp root, FE, pantheon), but the agent, the card, and the links all go on the
+root. The machine-readable output carries both `zampSelector` (use this) and `feSelector` (legacy,
+only for the browser host or an explicit per-service need).
 
 When the user asks "where is each seat" / "which seats are free" / "status of all seats", this table
 **is** the answer — show it.
@@ -104,8 +110,9 @@ the whole seat occupied.
 "reusable after cleanup". If every seat is OCCUPIED/OFFLINE, stop and tell the user the fleet is
 full (max 5 concurrent) — do not invent capacity.
 
-Once you pick a seat, take its FE selector from the classifier output (or from
-`orca worktree ps --json` directly) — never from memory or a table.
+Once you pick a seat, take its **zamp-root selector** (`zampSelector` / the `ZAMP=` line) from the
+classifier output (or from `orca worktree ps --json` directly) — never from memory or a table. That
+root worktree is where the agent and card go.
 
 ## Rule 3 — Browser ops must name the seat explicitly (#21210)
 
@@ -122,12 +129,14 @@ Mitigation — treat as mandatory for any seat browser work:
 
 1. **Always pass an explicit `--worktree` selector** on `tab create`, `goto`, and any browser
    command. Never rely on cwd/default resolution.
-2. Resolve that selector for the *intended* seat first, live:
+2. Resolve that selector for the *intended* seat first, live. Any worktree on the right host fixes
+   #21210 (the bug is about the host, not which checkout) — use the seat's `zampSelector` for
+   consistency with the rest of this skill:
    ```bash
-   orca worktree list --json | ...   # find the FE worktree whose hostId is ssh:<intended-host-id>
-   orca tab create --worktree "id:<repoId>::<path>" --url <url> --json
+   orca worktree list --json | ...   # find a worktree whose hostId is ssh:<intended-host-id>
+   orca tab create --worktree "<ZAMP>" --url <url> --json
    ```
-   The classifier's `feSelector` for the chosen seat is exactly this value.
+   The classifier's `zampSelector` (or `feSelector`) for the chosen seat is exactly this value.
 3. After opening, **confirm the resolved host matches the seat you meant** (read the command's
    echoed worktree/host, or `orca worktree current`).
 4. If you still get `chrome-error` or `browser_tab_not_found`, do not retry blind — re-issue the
@@ -136,21 +145,36 @@ Mitigation — treat as mandatory for any seat browser work:
 
 ## Assigning a seat (the workflow)
 
-1. **Rule 1** — build the seat-state map. Pick a FREE seat (or a DIRTY one with cleanup).
-2. Confirm the FE checkout has no stray terminals: `orca terminal list --worktree "<FE>" --json`.
+> **Assign on the `zamp` ROOT, never the service checkouts.** Every seat has a `/home/coder/zamp`
+> root folder that holds both `services/application-platform-frontend` and `services/pantheon`.
+> The agent, its Orca terminal, and the card all go on that **root** (`<ZAMP>` = the classifier's
+> `zampSelector`). The agent runs from the root — which is where `zamp dev` works and from where it
+> can reach both services — and cd's into `services/*` to branch and commit. Do NOT spawn in, or
+> card, the FE or pantheon checkout. (This is the standing preference: one card per seat, on the
+> root, so the sidebar shows one task, not two half-cards on sibling checkouts.)
+
+1. **Rule 1** — build the seat-state map. Pick a FREE seat (or a DIRTY one with cleanup). Take its
+   `<ZAMP>` root selector from the `ZAMP=` line / `zampSelector`.
+2. Confirm the root has no stray terminals: `orca terminal list --worktree "<ZAMP>" --json`.
    Stop stale ones (`orca terminal stop`) and reuse an idle terminal rather than piling up tabs.
-3. Link the ticket/PR and label the card so the state stays legible to the *next* run of Rule 1:
+3. Link the ticket/PR and label the card **on the root** so the state stays legible to the *next*
+   run of Rule 1:
    ```bash
-   orca worktree set --worktree "<FE>" --linear-issue <PRO-XXXX> \
+   orca worktree set --worktree "<ZAMP>" --linear-issue <PRO-XXXX> \
      --display-name "<short title>" --comment "spawning: <task>" --json
    ```
-   (A task comment is what makes this seat read as OCCUPIED next time — that is the point.)
-4. Spawn the agent in the FE checkout (fresh ticket → new branch from `origin/release`; existing PR
-   → check out its branch and `reset --hard` to origin, never `-B` from release, which would blow
-   the PR away; DIRTY seat → `git stash -u` first). See `orca-ticket` for the exact branch rules.
+   (A task comment is what makes this seat read as OCCUPIED next time — that is the point. Use
+   `--pr <n>` for a GitHub PR instead of `--linear-issue`.)
+4. Spawn the agent **in the root** and let the brief drive the per-service git. The agent runs from
+   `/home/coder/zamp`; it cd's into the service(s) the task touches to branch and commit:
    ```bash
-   orca terminal create --worktree "<FE>" --title "<task>" --command "claude '<brief>'" --json
+   orca terminal create --worktree "<ZAMP>" --title "<task>" --command "claude '<brief>'" --json
    ```
+   Put the branch rules IN THE BRIEF, per service it touches (`cd services/application-platform-frontend`
+   for FE, `cd services/pantheon` for pantheon): fresh ticket → new branch from `origin/release`;
+   existing PR → check out its branch and `reset --hard` to origin, never `-B` from release (which
+   would blow the PR away); DIRTY seat → `git stash -u` first. See `orca-ticket` for the exact branch
+   rules. A task that only touches one service just cd's into that one.
    Do **not** prefix the brief with `/i-have-adhd:i-have-adhd` or any other local slash-command —
    seat checkouts run their own Claude Code install without the user's personal skills, so an
    unrecognized `/skill:name` is swallowed as "Unknown command" and the whole rest of the brief
@@ -192,14 +216,23 @@ not that procedure.
    Run in each: `git checkout release`. (An older orca-ticket note says "BE from main" — that is
    stale for the resting state; go by the live PR `baseRefName`, which is `release`.)
 
-3. **Clear the card state** on each checkout so the next Rule 1 sees it FREE:
-   `orca worktree set --worktree "<sel>" --comment free --linear-issue null --json`. Until the link
-   and task comment are cleared, this skill keeps the seat OCCUPIED — by design.
+3. **Clear the card state** so the next Rule 1 sees it FREE. The card now lives on the `zamp` root,
+   so clear that one first — and clear any sibling checkout that still carries a label/link too.
+   **Blank the full set of link fields**, not just the Linear one (a stale GitHub **PR** badge needs
+   `--pr null` — `--issue null` does not touch it, and that mismatch is what leaves a card looking
+   assigned for hours):
+   ```bash
+   orca worktree set --worktree "<sel>" --display-name "<repo-or-zamp>" --comment free \
+     --issue null --pr null --linear-issue null --json
+   ```
+   Run it for the root (`<ZAMP>`) and any FE/pantheon checkout that is not already clean. Until the
+   links and task comment are cleared, this skill keeps the seat OCCUPIED — by design.
 
 4. **Close the terminals with the right command.** `orca terminal stop --terminal <handle>` does NOT
    exist in this CLI — it takes only `--worktree`, is deprecated, and errors `invalid_argument` on
    `--terminal`. Use instead:
-   `orca terminal close --worktree "<FE>" --all --json`. This stops the processes and durably
+   `orca terminal close --worktree "<ZAMP>" --all --json` (and any sibling checkout that had a live
+   terminal). This stops the processes and durably
    retires the tabs, layouts, and agent-resume records.
    - It often returns `terminal_stop_unverifiable` ("the owning SSH host did not confirm the PTY
      exit"). Do NOT report the agent as stopped, and do NOT retry against another host — that is the

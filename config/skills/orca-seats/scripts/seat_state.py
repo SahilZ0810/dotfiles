@@ -115,6 +115,21 @@ def fe_selector(checkouts):
     return None
 
 
+def zamp_selector(checkouts):
+    """The `/home/coder/zamp` ROOT worktree — the folder we assign work to.
+
+    Work is spawned here, not in the FE/pantheon service checkouts: the agent runs from the
+    root (where `zamp dev` works) and cd's into services/* to branch and commit. The card
+    (display-name, linked issue/PR, comment) also lives on this root so Rule 1 reads it here.
+    The root is the checkout whose path is the zamp dir itself, not a services/* subpath.
+    """
+    for w in checkouts:
+        p = (w.get("path") or "").rstrip("/")
+        if p.endswith("/zamp") and "/services/" not in p:
+            return f"id:{w.get('repoId')}::{w.get('path')}"
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--hosts")
@@ -137,6 +152,7 @@ def main():
             "hostId": h.get("id"),
             "state": state,
             "reasons": reasons,
+            "zampSelector": zamp_selector(checkouts),
             "feSelector": fe_selector(checkouts),
         })
 
@@ -154,10 +170,10 @@ def main():
     dirty = [s for s in seats if s["state"] == "DIRTY"]
     print("-" * 78)
     if free:
-        print(f"Assign to: {free[0]['seat']}  FE={free[0]['feSelector']}")
+        print(f"Assign to: {free[0]['seat']}  ZAMP={free[0]['zampSelector']}")
     elif dirty:
         print(f"No clean seat. Reusable (stash/reset first): {dirty[0]['seat']}  "
-              f"FE={dirty[0]['feSelector']}")
+              f"ZAMP={dirty[0]['zampSelector']}")
     else:
         print("No FREE or DIRTY seat — every seat is OCCUPIED or OFFLINE. Do not assign; "
               "tell the user.")
