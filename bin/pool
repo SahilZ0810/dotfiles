@@ -154,8 +154,8 @@ def cmd_do(args):
 
 def cmd_lessons(_args):
     for candidate in (
-        os.path.expanduser("~/obsidian-vault/wiki/agent-lessons.md"),
-        os.path.expanduser("~/Documents/Obsidian Vault/wiki/agent-lessons.md"),
+        os.path.expanduser("~/obsidian-vault/ai-memory/wiki/agent-lessons.md"),
+        os.path.expanduser("~/Documents/Obsidian Vault/ai-memory/wiki/agent-lessons.md"),
     ):
         if os.path.exists(candidate):
             with open(candidate, encoding="utf-8") as fh:

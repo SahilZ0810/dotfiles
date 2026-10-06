@@ -64,8 +64,8 @@ install_agent_memory() {
   fi
   if [ -n "$vault" ]; then
     block="$(python3 "$mem_dir/lessons_block.py" \
-      --lessons "$vault/wiki/agent-lessons.md" \
-      --profile "$vault/wiki/how-sahil-works.md" 2>/dev/null || true)"
+      --lessons "$vault/ai-memory/wiki/agent-lessons.md" \
+      --profile "$vault/ai-memory/wiki/how-sahil-works.md" 2>/dev/null || true)"
   else
     block=""
     echo "  no vault yet — skipping lessons block"

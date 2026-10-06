@@ -75,7 +75,7 @@ cycle() {
   # Newest transcript for the seat's project dir; harvest.py filters by session_id.
   session="$(ls -t "$HOME/.claude/projects"/*/*.jsonl 2>/dev/null | head -1)"
 
-  record="$vault/reports/agent-runs/$ticket.md"
+  record="$vault/ai-memory/reports/agent-runs/$ticket.md"
   python3 "$HERE/harvest.py" \
     --current "$current" \
     --issue "$issue_json" \
@@ -100,7 +100,7 @@ cycle() {
 # push_record — commit + push just this ticket's record. Retries with rebase; never
 # forces. One writer per file, so a rebase can't clobber another seat's work.
 push_record() {
-  local vault="$1" ticket="$2" rel="reports/agent-runs/$2.md" attempt
+  local vault="$1" ticket="$2" rel="ai-memory/reports/agent-runs/$2.md" attempt
   git -C "$vault" add "$rel" 2>/dev/null || return 1
   if git -C "$vault" diff --cached --quiet -- "$rel"; then
     return 0   # nothing changed this cycle — idempotent, still healthy

@@ -7,7 +7,7 @@ my long-term knowledge layer across Claude Code sessions and machines.
 - macOS (local): `~/Documents/Obsidian Vault`
 - Coder workspace (or other Linux): `~/obsidian-vault`
 
-**Index note:** `<vault>/AI Memory System.md` — read this first.
+**Index note:** `<vault>/ai-memory/AI Memory System.md` — read this first.
 
 ## When to consult it
 When a task relates to my saved knowledge, past decisions, projects, research, or
@@ -18,17 +18,17 @@ what's relevant; don't load the whole vault.
 ## Structure
 | Folder | Holds |
 |--------|-------|
-| `raw/` | unprocessed capture: articles, transcripts, links, pasted text, meeting dumps |
-| `wiki/` | processed knowledge: one concept/person/project/tool per note, wikilinked |
-| `reports/` | my best synthesized outputs: briefs, reviews, plans, drafts |
-| `templates/` | repeatable note formats |
+| `ai-memory/raw/` | unprocessed capture: articles, transcripts, links, pasted text, meeting dumps |
+| `ai-memory/wiki/` | processed knowledge: one concept/person/project/tool per note, wikilinked |
+| `ai-memory/reports/` | my best synthesized outputs: briefs, reviews, plans, drafts |
+| `ai-memory/templates/` | repeatable note formats |
 
 ## When to write to it
 Follow the loop **Capture → Process → Synthesize → Save → Reuse**. When I produce
 something durable and ask to keep it (or it clearly belongs in the knowledge base):
-- a synthesized answer/brief/plan → `reports/`
-- a reusable explanation of a concept → `wiki/` (link back to its `raw/` source)
-- a decision worth remembering → a decision-log note in `wiki/`
+- a synthesized answer/brief/plan → `ai-memory/reports/`
+- a reusable explanation of a concept → `ai-memory/wiki/` (link back to its `ai-memory/raw/` source)
+- a decision worth remembering → a decision-log note in `ai-memory/wiki/`
 
 Ask before creating vault files unless I've told you to save something.
 

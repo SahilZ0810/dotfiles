@@ -84,7 +84,7 @@ class HarvestShCase(unittest.TestCase):
             ["git", "ls-tree", "-r", "--name-only", "HEAD"],
             cwd=self.remote, capture_output=True, text=True,
         ).stdout
-        self.assertIn("reports/agent-runs/PRO-2374.md", listing)
+        self.assertIn("ai-memory/reports/agent-runs/PRO-2374.md", listing)
 
     def test_writes_the_heartbeat(self):
         self.run_once()

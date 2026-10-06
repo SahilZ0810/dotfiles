@@ -7,8 +7,8 @@ Full detail stays in the vault and the agent can open it on demand.
 """
 
 VAULT_HINT = (
-    "Full detail: `<vault>/wiki/agent-lessons.md`, `<vault>/wiki/how-sahil-works.md`, "
-    "run records in `<vault>/reports/agent-runs/`."
+    "Full detail: `<vault>/ai-memory/wiki/agent-lessons.md`, `<vault>/ai-memory/wiki/how-sahil-works.md`, "
+    "run records in `<vault>/ai-memory/reports/agent-runs/`."
 )
 
 

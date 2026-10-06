@@ -16,7 +16,7 @@ notes in the Obsidian vault. You are the **only** writer of those two files.
   . "$DOTFILES/scripts/agent-memory/common.sh"
   VAULT="$(vault_root)" || { echo "no vault — check ~/.config/obsidian-vault-token"; exit 0; }
   ```
-- Run records: `$VAULT/reports/agent-runs/*.md`
+- Run records: `$VAULT/ai-memory/reports/agent-runs/*.md`
 - Watermark: `~/agent-pool/retro-watermark` (ISO-8601). Process records modified after it.
   If absent, process everything.
 - PR review findings: for each record with a non-empty `pr:` field, read the review threads:
@@ -26,7 +26,7 @@ notes in the Obsidian vault. You are the **only** writer of those two files.
 
 ## What to produce
 
-### `$VAULT/wiki/agent-lessons.md`
+### `$VAULT/ai-memory/wiki/agent-lessons.md`
 
 Actionable rules about the **code and the repos**. One `### ` entry each, in exactly this
 shape — `lessons_block.py` parses it, and a different shape silently empties the block that
@@ -48,7 +48,7 @@ Rules:
 - Merge duplicates and bump the hit count rather than appending a near-identical entry.
 - Order by hit count descending, then most-recent first.
 
-### `$VAULT/wiki/how-sahil-works.md`
+### `$VAULT/ai-memory/wiki/how-sahil-works.md`
 
 The human's patterns, mined from `## Human corrections` in the records — especially
 `plan-rejected` entries, which contain his verbatim words about plans he refused. Cover:
@@ -66,7 +66,7 @@ Escalated items still count as lessons but must carry the proposal.
 1. Write both notes.
 2. Update the watermark: `date -u +%Y-%m-%dT%H:%M:%SZ > ~/agent-pool/retro-watermark`
 3. Commit and push the vault:
-   `git -C "$VAULT" add wiki && git -C "$VAULT" commit -m "retro: distil lessons" && git -C "$VAULT" pull --rebase && git -C "$VAULT" push`
+   `git -C "$VAULT" add ai-memory/wiki && git -C "$VAULT" commit -m "retro: distil lessons" && git -C "$VAULT" pull --rebase && git -C "$VAULT" push`
 4. Post a one-paragraph digest of what changed: new lessons, escalations, and any seat that
    reported **memory: OFF**.
 
@@ -74,4 +74,4 @@ Escalated items still count as lessons but must carry the proposal.
 
 - Never invent a lesson that no record supports.
 - Never exceed the promotion threshold rules to make the note look fuller.
-- Never write to `reports/agent-runs/` — those are the seats' files.
+- Never write to `ai-memory/reports/agent-runs/` — those are the seats' files.
