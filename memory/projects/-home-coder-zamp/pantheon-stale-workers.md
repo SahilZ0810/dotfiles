@@ -12,4 +12,4 @@ On Coder seats, `zamp pantheon-dev restart` (make target missing, exits 2) and t
 
 **Why:** PRO-3724 (2026-10-07) lost an hour debugging a "marker never fires" bug that was just a stale worker from 00:24 serving the run.
 
-**How to apply:** after any pantheon restart before a live test, run `ps -eo pid,lstart,cmd | grep '[c]ombined_workers.py\|[u]vicorn'` and SIGKILL any worker *or uvicorn API* older than the restart (stale uvicorns also survive and share :8001). Don't `pgrep -f`/`pkill -f` with a pattern that also matches your own shell command line — it kills the shell; confirm which pid ran a workflow via the Temporal history (worker identity) when behaviour contradicts the code.
+**How to apply:** after any pantheon restart before a live test, run `pgrep -af combined_workers` and SIGKILL any worker older than the restart; confirm which pid ran a workflow via the Temporal history (worker identity) when behaviour contradicts the code.
