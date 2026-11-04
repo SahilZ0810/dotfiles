@@ -1,2 +1,3 @@
 - [Reuse before building](reuse-before-building.md) — audit codebase + installed deps for existing coverage before writing any new utility
 - [Orca browser: use the session's worktree](orca-browser-use-session-worktree.md) — tabs must open where the chat runs, not the Mac local worktree
+- [bugpatrol start-fe stale server](bugpatrol-start-fe-stale-server.md) — :3000 may still serve the main checkout; verify the served build before trusting a retest
