@@ -4,3 +4,4 @@
 - [No Claude commit attribution](feedback_no_claude_commit_attribution.md) — when committing (only if explicitly asked), never add a Co-Authored-By/Claude-Session trailer
 - [Measure perf in the user's org](feedback_measure_in_users_org.md) — verify speedups on the org the user actually uses, not just the QA user-1 org
 - [Git author env override](reference_git_author_env_override.md) — workspace env forces author name `default`; set GIT_AUTHOR_NAME/GIT_COMMITTER_NAME when committing
+- [Brainstorm before changes](feedback_brainstorm_before_changes.md) — never edit code for a ticket until /superpowers:brainstorming has walked the user through issue + plan
